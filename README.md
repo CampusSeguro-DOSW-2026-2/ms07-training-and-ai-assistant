@@ -18,12 +18,15 @@ El sistema permitirá crear y responder evaluaciones asociadas a cada categoría
 **RF-12 · Exponer información vía API**
 Los contenidos y evaluaciones deberán ser consumibles desde la API documentada de MS07, sin depender de otros microservicios.
 
-## Historias de usuario (mapeadas a su RF)
+**RF-13 · Gestionar consultas al asistente IA**
+El sistema permitirá a los usuarios realizar consultas al Tutor CampusSeguro, que responderá exclusivamente con base en información preventiva institucional cargada en el sistema. Si no existe información suficiente para responder, el asistente lo indicará y remitirá al protocolo oficial, sin generar respuestas fuera de su alcance. Cada consulta quedará registrada con metadatos mínimos (fecha, usuario) para fines de auditoría, sin exponer información sensible.
+## Historias de usuario
 
 | Historia | RF asociados | Puntos |
 |---|---|---|
-| HU-3a · Consulta de contenidos categorizados | RF-08, RF-09, RF-10, RF-12 | 3 |
-| HU-3b · Evaluaciones cortas por categoría | RF-11, RF-12 | 3 |
+| HU-4 · Consulta de contenidos categorizados | RF-08, RF-09, RF-10, RF-12 | 3 |
+| HU-5 · Evaluaciones cortas por categoría | RF-11, RF-12 | 3 |
+| HU-6 · Consultar al tutor CampusSeguro (Asistente IA)| RF-13 | 5 |
 
 ## Modelo de dominio
 
