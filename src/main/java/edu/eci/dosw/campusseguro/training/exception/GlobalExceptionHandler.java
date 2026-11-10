@@ -56,6 +56,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCIA_NO_DISPONIBLE", e.getMessage(), List.of(), request);
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> badRequest(BadRequestException e, HttpServletRequest request) {
+        List<ErrorResponse.FieldError> errors = List.of(new ErrorResponse.FieldError(e.getField(), e.getMessage()));
+        return build(HttpStatus.BAD_REQUEST, "VALIDACION", INVALID_DATA_MESSAGE, errors, request);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> validation(MethodArgumentNotValidException e, HttpServletRequest request) {
         Map<String, String> byField = new LinkedHashMap<>();
