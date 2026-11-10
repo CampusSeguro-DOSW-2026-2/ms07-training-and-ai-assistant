@@ -50,7 +50,7 @@ public class OpenApiConfig {
     public OpenAPI trainingOpenApi() {
         Components components = new Components()
                 .addHeaders("XCorrelationID", new Header()
-                        .description("UUID v4 that links logs and audit events. MS07 generates one if missing.")
+                        .description("UUID v4 that links the logs of a request across services. MS07 generates one if missing.")
                         .schema(new StringSchema().format("uuid").example(CORRELATION_EXAMPLE)))
                 .addParameters("XUserId", header(HeaderAuthenticationFilter.USER_ID, true,
                         "Id (UUID) of the authenticated user. Set by the API Gateway.",
