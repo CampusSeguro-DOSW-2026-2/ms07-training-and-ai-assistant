@@ -56,6 +56,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCIA_NO_DISPONIBLE", e.getMessage(), List.of(), request);
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> badRequest(BadRequestException e, HttpServletRequest request) {
+        List<ErrorResponse.FieldError> errors = List.of(new ErrorResponse.FieldError(e.getField(), e.getMessage()));
+        return build(HttpStatus.BAD_REQUEST, "VALIDACION", INVALID_DATA_MESSAGE, errors, request);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> validation(MethodArgumentNotValidException e, HttpServletRequest request) {
         Map<String, String> byField = new LinkedHashMap<>();
@@ -105,16 +111,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ErrorResponse> unsupportedMediaType(HttpMediaTypeNotSupportedException e,
                                                               HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, "VALIDACION",
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "TIPO_NO_SOPORTADO",
                 "El tipo de contenido no es compatible; use application/json.", List.of(), request);
     }
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> responseStatus(ResponseStatusException e, HttpServletRequest request) {
         HttpStatus status = HttpStatus.valueOf(e.getStatusCode().value());
-        String code = status == HttpStatus.NOT_FOUND
-                ? "NO_ENCONTRADO"
-                : status.is4xxClientError() ? "SOLICITUD_INVALIDA" : "ERROR_INTERNO";
+        // Only codes from the catalog of the integration standards (section 7.2).
+        String code = ErrorController.codeFor(status);
         String message = e.getReason() != null ? e.getReason() : status.getReasonPhrase();
         return build(status, code, message, List.of(), request);
     }
