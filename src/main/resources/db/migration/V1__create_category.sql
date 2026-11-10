@@ -2,7 +2,7 @@
 CREATE TABLE category (
     id          UUID PRIMARY KEY,
     name        VARCHAR(100) NOT NULL,
-    description TEXT,
+    description VARCHAR(500),
     status      VARCHAR(10)  NOT NULL DEFAULT 'ACTIVO'
 );
 
