@@ -5,8 +5,8 @@ CREATE TABLE content (
     body        VARCHAR(20000) NOT NULL,
     category_id UUID         NOT NULL REFERENCES category (id),
     status      VARCHAR(10)  NOT NULL DEFAULT 'ACTIVO',
-    created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX ix_content_category ON content (category_id);
