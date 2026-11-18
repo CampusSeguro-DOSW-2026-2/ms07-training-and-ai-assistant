@@ -59,3 +59,36 @@ Usuario (1) ──< (N) ResultadoEvaluacion >── (1) Evaluacion
 | GET | `/api/v1/users/{userId}/evaluation-results` | HU-3b / RF-11 |
 
 
+
+## Probar en local
+
+MS07 no valida tokens. Autoriza solo por las cabeceras que pone el API Gateway:
+
+| Cabecera | Contenido |
+|---|---|
+| `X-User-Id` | UUID del usuario |
+| `X-User-Role` | Rol(es) del usuario, separados por coma (informativo: no decide el acceso) |
+| `X-User-Permission` | Permisos del usuario, separados por coma. El acceso se decide solo con esta cabecera |
+
+Si falta alguna de las tres, MS07 responde 401 `NO_AUTENTICADO`. Si `X-User-Permission` llega vacía, el usuario queda autenticado sin permisos y recibe 403 `PROHIBIDO`.
+
+Permisos de MS07: `ms07:content:read`, `ms07:quiz:take`, `ms07:tutor:use`, `ms07:content:manage`.
+
+```bash
+# Comunidad: 200
+curl -i http://localhost:8087/api/v1/training/categories \
+  -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
+  -H "X-User-Role: ESTUDIANTE" \
+  -H "X-User-Permission: ms07:content:read,ms07:quiz:take,ms07:tutor:use"
+
+# Sin X-User-Permission: 401
+curl -i http://localhost:8087/api/v1/training/categories \
+  -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
+  -H "X-User-Role: ESTUDIANTE"
+
+# Auditor (X-User-Permission vacía; en curl se envía con punto y coma): 403
+curl -i http://localhost:8087/api/v1/training/categories \
+  -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
+  -H "X-User-Role: AUDITOR" \
+  -H "X-User-Permission;"
+```
