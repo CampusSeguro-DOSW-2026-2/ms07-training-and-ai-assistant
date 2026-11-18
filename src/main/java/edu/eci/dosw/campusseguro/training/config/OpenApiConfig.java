@@ -24,7 +24,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.ResolvableType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.method.HandlerMethod;
@@ -122,7 +124,11 @@ public class OpenApiConfig {
 
     private static void addResponses(Operation operation, HandlerMethod handlerMethod, boolean secured) {
         ApiResponses responses = new ApiResponses();
-        boolean creates = handlerMethod.hasMethodAnnotation(PostMapping.class);
+        // A POST creates (201) unless it declares another status, like the tutor (200).
+        ResponseStatus status = handlerMethod.getMethodAnnotation(ResponseStatus.class);
+        boolean creates = status != null
+                ? status.code() == HttpStatus.CREATED
+                : handlerMethod.hasMethodAnnotation(PostMapping.class);
         responses.addApiResponse(creates ? "201" : "200", new ApiResponse()
                 .description(creates ? "Created." : "OK.")
                 .content(json(schemaOf(handlerMethod))));
