@@ -29,13 +29,14 @@ public class ErrorController implements org.springframework.boot.webmvc.error.Er
         return status == null || status.is5xxServerError() ? HttpStatus.INTERNAL_SERVER_ERROR : status;
     }
 
-    private static String codeFor(HttpStatus status) {
+    static String codeFor(HttpStatus status) {
         return switch (status) {
             case BAD_REQUEST -> "VALIDACION";
             case UNAUTHORIZED -> "NO_AUTENTICADO";
             case FORBIDDEN -> "PROHIBIDO";
             case NOT_FOUND -> "NO_ENCONTRADO";
             case METHOD_NOT_ALLOWED -> "METODO_NO_PERMITIDO";
+            case UNSUPPORTED_MEDIA_TYPE -> "TIPO_NO_SOPORTADO";
             case CONFLICT -> "CONFLICTO";
             case UNPROCESSABLE_CONTENT -> "REGLA_NEGOCIO";
             default -> "ERROR_INTERNO";
