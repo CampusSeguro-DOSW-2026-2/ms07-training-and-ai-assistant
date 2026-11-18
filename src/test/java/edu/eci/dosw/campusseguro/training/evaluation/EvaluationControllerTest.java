@@ -12,6 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -265,6 +266,19 @@ class EvaluationControllerTest {
         mvc.perform(json(post(URL), "{}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("NO_AUTENTICADO"));
+    }
+
+    // Outside a test transaction, like a real request (open-in-view is off).
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void deactivateAndReactivateReturnTheQuestionsOutsideATransaction() throws Exception {
+        String id = createEvaluation(createCategory("Test " + UUID.randomUUID()));
+        mvc.perform(asAdmin(patch(URL + "/" + id + "/deactivate")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questions[0].options", hasSize(2)));
+        mvc.perform(asAdmin(patch(URL + "/" + id + "/reactivate")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questions", hasSize(1)));
     }
 
     @Test
