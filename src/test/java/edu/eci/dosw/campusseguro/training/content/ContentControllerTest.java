@@ -124,8 +124,10 @@ class ContentControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    // RF-12 rule 2: the community sees every active content, even when its category is inactive.
+    // Only inactive contents are hidden, and includeInactive has no effect without ms07:content:manage.
     @Test
-    void studentListOnlyShowsVisibleContentsWithoutBody() throws Exception {
+    void studentListOnlyShowsActiveContentsWithoutBody() throws Exception {
         String active = createCategory("Test Activa");
         String inactive = createCategory("Test Inactiva");
         createContent("Visible", active);
@@ -134,16 +136,51 @@ class ContentControllerTest {
         deactivate(URL + "/" + hiddenId);
         deactivate(CATEGORIES + "/" + inactive);
 
-        mvc.perform(asStudent(get(URL).param("includeInactive", "true")))
+        mvc.perform(asStudent(get(URL).param("includeInactive", "true").param("size", "100")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.contenido[*].title", hasItem("Visible")))
+                .andExpect(jsonPath("$.contenido[*].title", hasItem("De categoria inactiva")))
                 .andExpect(jsonPath("$.contenido[*].title", not(hasItem("Oculto"))))
-                .andExpect(jsonPath("$.contenido[*].title", not(hasItem("De categoria inactiva"))))
                 .andExpect(jsonPath("$.contenido[0].body").doesNotExist());
 
-        mvc.perform(asAdmin(get(URL).param("includeInactive", "true")))
+        mvc.perform(asAdmin(get(URL).param("includeInactive", "true").param("size", "100")))
                 .andExpect(jsonPath("$.contenido[*].title", hasItem("Oculto")))
                 .andExpect(jsonPath("$.contenido[*].title", hasItem("De categoria inactiva")));
+    }
+
+    @Test
+    void activeContentOfInactiveCategoryStaysVisibleToStudents() throws Exception {
+        String categoryId = createCategory("Test Inactiva");
+        String id = createContent("Sigue visible", categoryId);
+        deactivate(CATEGORIES + "/" + categoryId);
+
+        mvc.perform(asStudent(get(URL).param("size", "100")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[*].title", hasItem("Sigue visible")));
+        mvc.perform(asStudent(get(URL + "/" + id)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Sigue visible"))
+                .andExpect(jsonPath("$.body").value("Agáchate, cúbrete y sujétate."));
+    }
+
+    @Test
+    void filterByInactiveCategoryShowsItsActiveContents() throws Exception {
+        String categoryId = createCategory("Test Inactiva");
+        createContent("Activo", categoryId);
+        String hiddenId = createContent("Inactivo", categoryId);
+        deactivate(URL + "/" + hiddenId);
+        deactivate(CATEGORIES + "/" + categoryId);
+
+        mvc.perform(asStudent(get(URL).param("categoryId", categoryId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total_elementos").value(1))
+                .andExpect(jsonPath("$.contenido[0].title").value("Activo"));
+
+        mvc.perform(asStudent(get(URL).param("categoryId", categoryId).param("includeInactive", "true")))
+                .andExpect(jsonPath("$.total_elementos").value(1));
+
+        mvc.perform(asAdmin(get(URL).param("categoryId", categoryId).param("includeInactive", "true")))
+                .andExpect(jsonPath("$.total_elementos").value(2));
     }
 
     @Test

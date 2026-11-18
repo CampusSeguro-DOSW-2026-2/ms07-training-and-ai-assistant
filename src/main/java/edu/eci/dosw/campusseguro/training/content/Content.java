@@ -78,9 +78,10 @@ public class Content {
         return status == Status.ACTIVO;
     }
 
-    // Visible to the community only when the content and its category are both active.
+    // RF-12 rule 2: the community sees every active content, even when its category is inactive.
+    // An inactive category only disappears from the category filter, not from "all contents".
     public boolean isVisibleToCommunity() {
-        return isActive() && category.isActive();
+        return isActive();
     }
 
     private static Instant now() {

@@ -28,7 +28,8 @@ public class ContentService {
         this.categoryService = categoryService;
     }
 
-    // Managers (includeInactive) see every content; the community only active contents of active categories.
+    // Managers (includeInactive) see every content; the community sees every active content,
+    // even when its category is inactive (RF-12 rule 2).
     public Page<Content> list(boolean includeInactive, UUID categoryId, Pageable pageable) {
         if (includeInactive) {
             return categoryId == null
@@ -36,16 +37,15 @@ public class ContentService {
                     : repository.findByCategoryId(categoryId, pageable);
         }
         return categoryId == null
-                ? repository.findByStatusAndCategoryStatus(Status.ACTIVO, Status.ACTIVO, pageable)
-                : repository.findByStatusAndCategoryStatusAndCategoryId(Status.ACTIVO, Status.ACTIVO, categoryId,
-                        pageable);
+                ? repository.findByStatus(Status.ACTIVO, pageable)
+                : repository.findByStatusAndCategoryId(Status.ACTIVO, categoryId, pageable);
     }
 
     public Content get(UUID id) {
         return repository.findById(id).orElseThrow(() -> new NotFoundException(NOT_FOUND));
     }
 
-    // A hidden content answers 404 to the community, as if it did not exist.
+    // An inactive content answers 404 to the community, as if it did not exist.
     public Content getForReader(UUID id, boolean canManage) {
         Content content = get(id);
         if (!canManage && !content.isVisibleToCommunity()) {
@@ -54,7 +54,7 @@ public class ContentService {
         return content;
     }
 
-    // For progress (content views) and other packages: 404 if missing, 422 if hidden.
+    // For progress (content views) and other packages: 404 if missing, 422 if inactive.
     public Content requireActive(UUID id) {
         Content content = get(id);
         if (!content.isVisibleToCommunity()) {

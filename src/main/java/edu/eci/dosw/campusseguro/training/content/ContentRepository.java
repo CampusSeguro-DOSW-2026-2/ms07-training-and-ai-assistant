@@ -13,8 +13,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
 
     Page<Content> findByCategoryId(UUID categoryId, Pageable pageable);
 
-    Page<Content> findByStatusAndCategoryStatus(Status status, Status categoryStatus, Pageable pageable);
+    Page<Content> findByStatus(Status status, Pageable pageable);
 
-    Page<Content> findByStatusAndCategoryStatusAndCategoryId(Status status, Status categoryStatus, UUID categoryId,
-                                                             Pageable pageable);
+    Page<Content> findByStatusAndCategoryId(Status status, UUID categoryId, Pageable pageable);
 }
