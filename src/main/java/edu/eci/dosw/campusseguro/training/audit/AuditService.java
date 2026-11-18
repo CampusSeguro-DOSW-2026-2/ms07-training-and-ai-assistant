@@ -16,36 +16,31 @@ public class AuditService {
     }
 
     @Transactional
-<<<<<<< HEAD
     public void registerTutorQuery(UUID userId, TutorQueryResult result) {
-=======
-    public void registerTutorQuery(UUID userId) {
-        register(userId, AuditEvent.TUTOR_QUERY);
+        if (result == null) {
+            throw new IllegalArgumentException("The result is required for a tutor query");
+        }
+        save(userId, AuditEvent.TUTOR_QUERY, result.name());
     }
 
     // Saves an event of the given type (one of the AuditEvent constants) in the current transaction.
     @Transactional
     public void register(UUID userId, String eventType) {
->>>>>>> origin/develop
+        save(userId, eventType, null);
+    }
+
+    private void save(UUID userId, String eventType, String result) {
         if (userId == null) {
             throw new IllegalArgumentException("The user ID is required for audit registration");
-        }
-        if (result == null) {
-            throw new IllegalArgumentException("The result is required for a tutor query");
         }
 
         String correlationId = MDC.get("correlationId");
 
         AuditEvent event = new AuditEvent(
                 userId,
-<<<<<<< HEAD
-                AuditEvent.TUTOR_QUERY,
-                correlationId,
-                result.name()
-=======
                 eventType,
-                correlationId
->>>>>>> origin/develop
+                correlationId,
+                result
         );
 
         auditEventRepository.save(event);
