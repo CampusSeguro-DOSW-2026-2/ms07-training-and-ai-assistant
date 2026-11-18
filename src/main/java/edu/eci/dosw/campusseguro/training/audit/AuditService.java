@@ -16,9 +16,12 @@ public class AuditService {
     }
 
     @Transactional
-    public void registerTutorQuery(UUID userId) {
+    public void registerTutorQuery(UUID userId, TutorQueryResult result) {
         if (userId == null) {
             throw new IllegalArgumentException("The user ID is required for audit registration");
+        }
+        if (result == null) {
+            throw new IllegalArgumentException("The result is required for a tutor query");
         }
 
         String correlationId = MDC.get("correlationId");
@@ -26,7 +29,8 @@ public class AuditService {
         AuditEvent event = new AuditEvent(
                 userId,
                 AuditEvent.TUTOR_QUERY,
-                correlationId
+                correlationId,
+                result.name()
         );
 
         auditEventRepository.save(event);

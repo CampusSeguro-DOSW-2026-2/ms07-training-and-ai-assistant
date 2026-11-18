@@ -1,5 +1,6 @@
 package edu.eci.dosw.campusseguro.training.tutor;
 
+import edu.eci.dosw.campusseguro.training.security.CurrentUser;
 import edu.eci.dosw.campusseguro.training.security.Permissions;
 import edu.eci.dosw.campusseguro.training.security.RequiresPermission;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,6 @@ public class TutorController {
     @ResponseStatus(HttpStatus.OK)
     @RequiresPermission(Permissions.TUTOR_USE)
     public TutorAnswerResponse ask(@RequestBody TutorQuestionRequest request) {
-        return service.ask(request.question());
+        return service.ask(CurrentUser.id(), request.question());
     }
 }
