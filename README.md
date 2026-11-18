@@ -109,7 +109,7 @@ El tutor (RF-15) llama al modelo de lenguaje a través de adaptadores, siguiendo
 | `LLM_API_KEY` | Clave del proveedor. Solo en `.env` o en el entorno de la VM, nunca en el repositorio |
 | `LLM_MODEL` | Modelo de OpenAI (por defecto `gpt-4o-mini`); en Azure lo define el deployment |
 | `LLM_TIMEOUT` | Tiempo máximo de espera (por defecto `2500ms`, por debajo de los 3000 ms del Gateway) |
-| `LLM_MAX_TOKENS`, `LLM_TEMPERATURE` | Largo máximo de la respuesta (400) y temperatura (0.2) |
+| `LLM_MAX_TOKENS`, `LLM_TEMPERATURE` | Largo máximo de la respuesta (250) y temperatura (0.2). Respuestas cortas para que el tutor responda dentro del tiempo del Gateway |
 
 Si falta la clave, el proveedor responde con error o se supera el tiempo, MS07 responde 503 `DEPENDENCIA_NO_DISPONIBLE` y no muestra ninguna respuesta generada. Los logs solo registran el código HTTP del proveedor, nunca la clave ni el cuerpo.
 

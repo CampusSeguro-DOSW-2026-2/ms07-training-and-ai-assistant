@@ -23,7 +23,7 @@ public class ContentRetriever {
     public static final int MIN_SCORE = 2;
     public static final int TITLE_POINTS = 3;
     public static final int BODY_POINTS = 1;
-    public static final int MAX_TEXT_LENGTH = 2000;
+    public static final int MAX_TEXT_LENGTH = 1200;
 
     private static final int STEM_LENGTH = 5;
     private static final int MIN_WORD_LENGTH = 3;
