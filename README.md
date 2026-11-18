@@ -92,3 +92,23 @@ curl -i http://localhost:8087/api/v1/training/categories \
   -H "X-User-Role: AUDITOR" \
   -H "X-User-Permission;"
 ```
+
+## Tutor: proveedor de IA
+
+El tutor (RF-15) llama al modelo de lenguaje a través de adaptadores, siguiendo los patrones del repositorio [aaintegration](https://github.com/ginnko2019/aaintegration):
+
+| Patrón | Clase |
+|---|---|
+| Adapter | `AiAdapter`, con `OpenAiAdapter` y `AzureOpenAiAdapter` (ambos sobre `ChatCompletionsAdapter`) |
+| Componentes independientes | `AiAdapters` recibe todos los adaptadores y usa el de `LLM_PROVIDER`; agregar un proveedor no cambia el tutor |
+
+| Variable | Uso |
+|---|---|
+| `LLM_PROVIDER` | `openai` (por defecto) o `azure` |
+| `LLM_URL` | Endpoint de chat completions. OpenAI: `https://api.openai.com/v1/chat/completions`. Azure: `https://<recurso>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=<versión>` |
+| `LLM_API_KEY` | Clave del proveedor. Solo en `.env` o en el entorno de la VM, nunca en el repositorio |
+| `LLM_MODEL` | Modelo de OpenAI (por defecto `gpt-4o-mini`); en Azure lo define el deployment |
+| `LLM_TIMEOUT` | Tiempo máximo de espera (por defecto `2500ms`, por debajo de los 3000 ms del Gateway) |
+| `LLM_MAX_TOKENS`, `LLM_TEMPERATURE` | Largo máximo de la respuesta (400) y temperatura (0.2) |
+
+Si falta la clave, el proveedor responde con error o se supera el tiempo, MS07 responde 503 `DEPENDENCIA_NO_DISPONIBLE` y no muestra ninguna respuesta generada. Los logs solo registran el código HTTP del proveedor, nunca la clave ni el cuerpo.
