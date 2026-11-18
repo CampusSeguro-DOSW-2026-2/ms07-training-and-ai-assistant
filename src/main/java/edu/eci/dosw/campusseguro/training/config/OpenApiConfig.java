@@ -3,7 +3,6 @@ package edu.eci.dosw.campusseguro.training.config;
 import edu.eci.dosw.campusseguro.training.exception.ErrorResponse;
 import edu.eci.dosw.campusseguro.training.security.HeaderAuthenticationFilter;
 import edu.eci.dosw.campusseguro.training.security.RequiresPermission;
-import edu.eci.dosw.campusseguro.training.security.RolePermissions;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -35,7 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-// Local Swagger that follows the integration standards: identity headers, x-permiso / x-roles
+// Local Swagger that follows the integration standards: identity headers, x-permiso
 // and the common error responses. The official contract lives in the documentation repository.
 @Configuration
 public class OpenApiConfig {
@@ -58,14 +57,19 @@ public class OpenApiConfig {
                 .addParameters("XUserRole", header(HeaderAuthenticationFilter.USER_ROLE, true,
                         "Comma-separated roles of the authenticated user. Set by the API Gateway.",
                         "BRIGADISTA,ESTUDIANTE"))
+                .addParameters("XUserPermission", header(HeaderAuthenticationFilter.USER_PERMISSION, true,
+                        "Comma-separated permissions of the authenticated user. Set by the API Gateway. "
+                                + "MS07 authorizes only by this header, never by role name.",
+                        "ms07:content:read,ms07:quiz:take,ms07:tutor:use"))
                 .addParameters("XCorrelationId", header(CorrelationIdFilter.HEADER, false,
                         "Request trace id (UUID v4).", CORRELATION_EXAMPLE))
                 .addResponses("BadRequest", error("Validation failed: states the field and the rule.",
                         400, "VALIDACION", "Datos inválidos.",
                         List.of(new ErrorResponse.FieldError("name", "El nombre es obligatorio."))))
-                .addResponses("Unauthorized", error("Identity headers are missing (X-User-Id / X-User-Role).",
+                .addResponses("Unauthorized", error(
+                        "Identity headers are missing (X-User-Id / X-User-Role / X-User-Permission).",
                         401, "NO_AUTENTICADO", "Faltan las cabeceras de identidad.", List.of()))
-                .addResponses("Forbidden", error("X-User-Role has none of the roles in x-roles.",
+                .addResponses("Forbidden", error("X-User-Permission does not include the permission in x-permiso.",
                         403, "PROHIBIDO", "No tiene permiso para realizar esta operación.", List.of()))
                 .addResponses("NotFound", error("The resource does not exist.",
                         404, "NO_ENCONTRADO", "La categoría no existe.", List.of()))
@@ -78,11 +82,11 @@ public class OpenApiConfig {
                         .title("MS07 Training and AI assistant")
                         .version("v1")
                         .description("Learning center, contents, evaluations, progress and AI tutor of CampusSeguro.\n\n"
-                                + "**Identity inputs:** protected endpoints receive `X-User-Id` and `X-User-Role` "
-                                + "(comma-separated roles), set by the API Gateway; all of them accept "
-                                + "`X-Correlation-ID`. If the identity headers are missing, MS07 answers 401. "
-                                + "Each operation declares its permission in `x-permiso` and the roles that have it "
-                                + "in `x-roles`."))
+                                + "**Identity inputs:** protected endpoints receive `X-User-Id`, `X-User-Role` "
+                                + "and `X-User-Permission` (comma-separated permissions), set by the API Gateway; "
+                                + "all of them accept `X-Correlation-ID`. If any identity header is missing, MS07 "
+                                + "answers 401. Access is decided only by `X-User-Permission`: each operation "
+                                + "declares the permission it requires in `x-permiso`."))
                 .servers(List.of(
                         new Server().url("http://localhost:8080").description("External access (API Gateway)"),
                         new Server().url("http://localhost:8087").description("MS07 directly, development only")))
@@ -95,7 +99,6 @@ public class OpenApiConfig {
             RequiresPermission permission = handlerMethod.getMethodAnnotation(RequiresPermission.class);
             if (permission != null) {
                 operation.addExtension("x-permiso", permission.value());
-                operation.addExtension("x-roles", RolePermissions.rolesWith(permission.value()));
             }
             addHeaders(operation, permission != null);
             addResponses(operation, handlerMethod, permission != null);
@@ -108,6 +111,7 @@ public class OpenApiConfig {
         if (secured) {
             parameters.add(new Parameter().$ref(PARAMETERS + "XUserId"));
             parameters.add(new Parameter().$ref(PARAMETERS + "XUserRole"));
+            parameters.add(new Parameter().$ref(PARAMETERS + "XUserPermission"));
         }
         parameters.add(new Parameter().$ref(PARAMETERS + "XCorrelationId"));
         if (operation.getParameters() != null) {
