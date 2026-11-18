@@ -112,3 +112,31 @@ El tutor (RF-15) llama al modelo de lenguaje a través de adaptadores, siguiendo
 | `LLM_MAX_TOKENS`, `LLM_TEMPERATURE` | Largo máximo de la respuesta (400) y temperatura (0.2) |
 
 Si falta la clave, el proveedor responde con error o se supera el tiempo, MS07 responde 503 `DEPENDENCIA_NO_DISPONIBLE` y no muestra ninguna respuesta generada. Los logs solo registran el código HTTP del proveedor, nunca la clave ni el cuerpo.
+
+### Preguntar al tutor
+
+`POST /api/v1/tutor/questions` (permiso `ms07:tutor:use`). El tutor busca los contenidos activos relacionados con la pregunta y responde solo con ellos. Si no encuentra ninguno, o el modelo indica que no alcanzan, responde con `sufficient: false` y remite al protocolo oficial de emergencias de la ECI sin generar texto.
+
+```bash
+curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
+  -H "X-User-Role: ESTUDIANTE" \
+  -H "X-User-Permission: ms07:content:read,ms07:quiz:take,ms07:tutor:use" \
+  -d '{"question":"¿Qué hago si hay un sismo mientras estoy en clase?"}'
+```
+
+```json
+{
+  "answer": "Agáchate, cúbrete y sujétate…",
+  "sufficient": true,
+  "sources": [{ "id": "…", "title": "Qué hacer durante un sismo" }]
+}
+```
+
+| Respuesta | Cuándo |
+|---|---|
+| 200 | Respuesta del tutor, o `sufficient: false` si no hay información |
+| 400 `VALIDACION` | Pregunta vacía o de más de 500 caracteres |
+| 401 / 403 | Faltan las cabeceras de identidad o el permiso `ms07:tutor:use` |
+| 503 `DEPENDENCIA_NO_DISPONIBLE` | El modelo o la base de datos no responden a tiempo |
