@@ -1,5 +1,7 @@
 package edu.eci.dosw.campusseguro.training.tutor;
 
+import edu.eci.dosw.campusseguro.training.audit.AuditEvent;
+import edu.eci.dosw.campusseguro.training.audit.AuditEventRepository;
 import edu.eci.dosw.campusseguro.training.category.Category;
 import edu.eci.dosw.campusseguro.training.category.CategoryRepository;
 import edu.eci.dosw.campusseguro.training.content.Content;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -107,6 +110,9 @@ class TutorControllerTest {
     @Autowired
     private ContentRepository contents;
 
+    @Autowired
+    private AuditEventRepository auditEvents;
+
     private MockMvc mvc;
     private Content earthquake;
 
@@ -114,6 +120,7 @@ class TutorControllerTest {
     void setUp() {
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilter).build();
         ai.reset();
+        auditEvents.deleteAll();
         Category category = categories.save(new Category("Test Tutor", null));
         earthquake = contents.save(new Content("Qué hacer durante un sismo",
                 "Agáchate, cúbrete y sujétate. Aléjate de ventanas y estanterías.", category));
@@ -142,6 +149,7 @@ class TutorControllerTest {
                 .andExpect(jsonPath("$.sources[0].title").value("Qué hacer durante un sismo"));
 
         assertThat(ai.lastPrompt.message()).isEqualTo("¿Qué hago si hay un sismo en clase?");
+        assertRecorded("RESPONDIDA");
         assertThat(ai.lastPrompt.instructions())
                 .contains("ÚNICAMENTE los contenidos")
                 .contains(TutorService.NO_INFORMATION_MARK)
@@ -158,6 +166,7 @@ class TutorControllerTest {
                 .andExpect(jsonPath("$.sources", hasSize(0)));
 
         assertThat(ai.calls).isZero();
+        assertRecorded("FUERA_DE_ALCANCE");
     }
 
     @Test
@@ -169,6 +178,8 @@ class TutorControllerTest {
                 .andExpect(jsonPath("$.sufficient").value(false))
                 .andExpect(jsonPath("$.answer").value(TutorService.NO_INFORMATION))
                 .andExpect(jsonPath("$.sources", hasSize(0)));
+
+        assertRecorded("FUERA_DE_ALCANCE");
     }
 
     @Test
@@ -191,6 +202,8 @@ class TutorControllerTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.codigo").value("DEPENDENCIA_NO_DISPONIBLE"))
                 .andExpect(jsonPath("$.mensaje").value(ChatCompletionsAdapter.UNAVAILABLE));
+
+        assertThat(auditEvents.count()).isZero();
     }
 
     @Test
@@ -199,6 +212,8 @@ class TutorControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION"))
                 .andExpect(jsonPath("$.errores[*].campo", hasItem("question")));
+
+        assertThat(auditEvents.count()).isZero();
     }
 
     @Test
@@ -231,6 +246,24 @@ class TutorControllerTest {
     void adminWithoutTutorPermissionAnswers403() throws Exception {
         mvc.perform(ask("¿Qué hago si hay un sismo?", "ms07:content:manage"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void theRecordKeepsNoQuestionOrAnswer() throws Exception {
+        mvc.perform(asStudent("¿Qué hago si hay un sismo en clase?")).andExpect(status().isOk());
+
+        AuditEvent event = auditEvents.findAll().get(0);
+        assertThat(List.of(event.getEventType(), event.getResult(), String.valueOf(event.getCorrelationId())))
+                .noneMatch(value -> value.contains("sismo") || value.contains("Agáchate"));
+    }
+
+    private void assertRecorded(String result) {
+        List<AuditEvent> events = auditEvents.findAll();
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).getUserId()).isEqualTo(UUID.fromString(USER));
+        assertThat(events.get(0).getEventType()).isEqualTo(AuditEvent.TUTOR_QUERY);
+        assertThat(events.get(0).getResult()).isEqualTo(result);
+        assertThat(events.get(0).getOccurredAt()).isNotNull();
     }
 
     @Test

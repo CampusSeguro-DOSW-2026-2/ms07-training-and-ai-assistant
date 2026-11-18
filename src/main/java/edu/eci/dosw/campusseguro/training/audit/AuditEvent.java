@@ -33,6 +33,10 @@ public class AuditEvent {
     @Column(name = "correlation_id", length = 36)
     private String correlationId;
 
+    // Outcome of a tutor query (RF-15 step 8); null for other events.
+    @Column(name = "result", length = 20)
+    private String result;
+
     protected AuditEvent() {
     }
 
@@ -42,6 +46,11 @@ public class AuditEvent {
         this.eventType = eventType;
         this.occurredAt = Instant.now();
         this.correlationId = correlationId;
+    }
+
+    public AuditEvent(UUID userId, String eventType, String correlationId, String result) {
+        this(userId, eventType, correlationId);
+        this.result = result;
     }
 
     public UUID getId() {
@@ -62,5 +71,9 @@ public class AuditEvent {
 
     public String getCorrelationId() {
         return correlationId;
+    }
+
+    public String getResult() {
+        return result;
     }
 }
