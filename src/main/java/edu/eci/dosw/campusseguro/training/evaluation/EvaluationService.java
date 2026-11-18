@@ -24,8 +24,12 @@ public class EvaluationService {
         this.categoryService = categoryService;
     }
 
+    // Loads the questions and options here: open-in-view is off, so the controller cannot load them later.
     public Evaluation get(UUID id) {
-        return repository.findById(id).orElseThrow(() -> new NotFoundException("La evaluación no existe."));
+        Evaluation evaluation = repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("La evaluación no existe."));
+        evaluation.getQuestions().forEach(question -> question.getOptions().size());
+        return evaluation;
     }
 
     @Transactional
