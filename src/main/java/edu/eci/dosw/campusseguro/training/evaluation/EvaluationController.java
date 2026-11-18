@@ -62,13 +62,13 @@ public class EvaluationController {
     @PostMapping
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public ResponseEntity<EvaluationResponse> create(@Valid @RequestBody EvaluationRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(EvaluationResponse.from(service.create(request)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(EvaluationResponse.from(service.create(CurrentUser.id(), request)));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public EvaluationResponse update(@PathVariable UUID id, @Valid @RequestBody EvaluationRequest request) {
-        return EvaluationResponse.from(service.update(id, request));
+        return EvaluationResponse.from(service.update(id, CurrentUser.id(), request));
     }
 
     @PatchMapping("/{id}/deactivate")
