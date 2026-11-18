@@ -120,6 +120,33 @@ class ContentRetrieverTest {
     }
 
     @Test
+    void synonymsFindTheContent() {
+        content("Qué hacer durante un sismo", "Agáchate, cúbrete y sujétate.");
+
+        assertThat(titles("Hola, ¿qué hago si hay un terremoto?")).containsExactly("Qué hacer durante un sismo");
+        assertThat(titles("¿y si tiembla muy fuerte?")).containsExactly("Qué hacer durante un sismo");
+    }
+
+    @Test
+    void typosFindTheContent() {
+        content("Evacuación de laboratorios", "Cierra el gas y sal por la ruta señalizada.");
+        content("Qué hacer durante un sismo", "Agáchate, cúbrete y sujétate.");
+
+        assertThat(titles("como evacuo el laboratrio")).containsExactly("Evacuación de laboratorios");
+        assertThat(titles("que hago en un sizmo")).containsExactly("Qué hacer durante un sismo");
+    }
+
+    @Test
+    void specificWordsWeighMoreThanCommonOnes() {
+        content("Qué hacer durante un sismo en espacios abiertos", "Aléjate de postes y cables.");
+        content("Qué hacer durante un sismo en espacios cerrados", "Cúbrete debajo de una mesa.");
+        content("Primeras acciones después de un sismo", "Revisa si hay lesiones.");
+        content("Qué hacer en un salón de clase", "Protégete debajo de tu mesa en el salón.");
+
+        assertThat(titles("estoy en el aula y tiembla").get(0)).isEqualTo("Qué hacer en un salón de clase");
+    }
+
+    @Test
     void stemsJoinWordsOfTheSameFamily() {
         assertThat(ContentRetriever.stems("¿Qué hago en los sismos y la evacuación?"))
                 .containsExactly("sismo", "evacu");
