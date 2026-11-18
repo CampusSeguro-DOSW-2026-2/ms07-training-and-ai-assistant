@@ -1,5 +1,7 @@
 package edu.eci.dosw.campusseguro.training.evaluation;
 
+import edu.eci.dosw.campusseguro.training.audit.AuditEvent;
+import edu.eci.dosw.campusseguro.training.audit.AuditService;
 import edu.eci.dosw.campusseguro.training.category.Category;
 import edu.eci.dosw.campusseguro.training.category.CategoryService;
 import edu.eci.dosw.campusseguro.training.common.Status;
@@ -28,12 +30,14 @@ public class EvaluationService {
     private final EvaluationRepository repository;
     private final EvaluationAttemptRepository attemptRepository;
     private final CategoryService categoryService;
+    private final AuditService auditService;
 
     public EvaluationService(EvaluationRepository repository, EvaluationAttemptRepository attemptRepository,
-                             CategoryService categoryService) {
+                             CategoryService categoryService, AuditService auditService) {
         this.repository = repository;
         this.attemptRepository = attemptRepository;
         this.categoryService = categoryService;
+        this.auditService = auditService;
     }
 
     // The community sees active evaluations even when their category is inactive.
@@ -65,18 +69,20 @@ public class EvaluationService {
     }
 
     @Transactional
-    public Evaluation create(EvaluationRequest request) {
+    public Evaluation create(UUID userId, EvaluationRequest request) {
         validateQuestions(request.questions());
         Category category = categoryService.requireActive(request.categoryId());
         Evaluation evaluation = new Evaluation(request.title().trim(), request.topic().trim(), category);
         addQuestions(evaluation, request.questions());
-        return repository.save(evaluation);
+        Evaluation saved = repository.save(evaluation);
+        auditService.register(userId, AuditEvent.EVALUATION_CREATED);
+        return saved;
     }
 
     // The current category can be kept even if it is now inactive; a new one must be active.
     // Questions and options are replaced as a whole, so an evaluation that was already answered is not edited.
     @Transactional
-    public Evaluation update(UUID id, EvaluationRequest request) {
+    public Evaluation update(UUID id, UUID userId, EvaluationRequest request) {
         Evaluation evaluation = get(id);
         if (attemptRepository.existsByEvaluationId(id)) {
             throw new ConflictException("La evaluación ya tiene intentos registrados: inactívela y cree una nueva.");
@@ -88,6 +94,7 @@ public class EvaluationService {
         evaluation.update(request.title().trim(), request.topic().trim(), category);
         evaluation.clearQuestions();
         addQuestions(evaluation, request.questions());
+        auditService.register(userId, AuditEvent.EVALUATION_UPDATED);
         return evaluation;
     }
 
@@ -154,6 +161,7 @@ public class EvaluationService {
         int total = evaluation.getQuestions().size();
         int score = Math.round(correctAnswers * 100f / total);
         EvaluationAttempt attempt = attemptRepository.save(new EvaluationAttempt(userId, evaluation, score));
+        auditService.register(userId, AuditEvent.ATTEMPT_REGISTERED);
         return new AttemptResponse(attempt.getId(), evaluation.getId(), attempt.getTopic(), score, correctAnswers,
                 total, attempt.getAttemptedAt(), results);
     }

@@ -17,6 +17,12 @@ public class AuditService {
 
     @Transactional
     public void registerTutorQuery(UUID userId) {
+        register(userId, AuditEvent.TUTOR_QUERY);
+    }
+
+    // Saves an event of the given type (one of the AuditEvent constants) in the current transaction.
+    @Transactional
+    public void register(UUID userId, String eventType) {
         if (userId == null) {
             throw new IllegalArgumentException("The user ID is required for audit registration");
         }
@@ -25,7 +31,7 @@ public class AuditService {
 
         AuditEvent event = new AuditEvent(
                 userId,
-                AuditEvent.TUTOR_QUERY,
+                eventType,
                 correlationId
         );
 
