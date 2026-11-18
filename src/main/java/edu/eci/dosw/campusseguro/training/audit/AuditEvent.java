@@ -14,6 +14,9 @@ import java.util.UUID;
 public class AuditEvent {
 
     public static final String TUTOR_QUERY = "TUTOR_QUERY";
+    public static final String EVALUATION_CREATED = "EVALUACION_CREADA";
+    public static final String EVALUATION_UPDATED = "EVALUACION_ACTUALIZADA";
+    public static final String ATTEMPT_REGISTERED = "INTENTO_REGISTRADO";
 
     @Id
     private UUID id;
