@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import edu.eci.dosw.campusseguro.training.exception.DependencyUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -66,8 +67,10 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
             log.warn("AI provider {} answered HTTP {}", provider(), e.getStatusCode().value());
             throw new DependencyUnavailableException(UNAVAILABLE);
         } catch (RestClientException e) {
-            // Timeout, connection refused or a body that is not the expected JSON.
-            log.warn("AI provider {} could not be used: {}", provider(), e.getClass().getSimpleName());
+            // Timeout, connection or certificate error, or a body that is not the expected JSON.
+            // The root cause says which one and never carries the key.
+            log.warn("AI provider {} could not be used: {}", provider(),
+                    NestedExceptionUtils.getMostSpecificCause(e).toString());
             throw new DependencyUnavailableException(UNAVAILABLE);
         }
     }

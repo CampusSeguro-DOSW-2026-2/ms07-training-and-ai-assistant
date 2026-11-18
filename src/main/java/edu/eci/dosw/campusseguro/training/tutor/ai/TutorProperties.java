@@ -19,7 +19,7 @@ public record TutorProperties(String provider, String url, String apiKey, String
         apiKey = apiKey == null ? "" : apiKey.trim();
         model = model == null ? "" : model.trim();
         timeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
-        maxTokens = maxTokens == null ? 400 : maxTokens;
+        maxTokens = maxTokens == null ? 250 : maxTokens;
         temperature = temperature == null ? 0.2 : temperature;
     }
 
