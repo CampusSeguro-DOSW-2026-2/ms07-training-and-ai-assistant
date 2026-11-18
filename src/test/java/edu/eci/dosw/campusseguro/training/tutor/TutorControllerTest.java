@@ -183,6 +183,25 @@ class TutorControllerTest {
     }
 
     @Test
+    void aMarkLeftAfterARealAnswerIsRemoved() throws Exception {
+        ai.reply = "Agáchate, cúbrete y sujétate. SIN_INFORMACION";
+
+        mvc.perform(asStudent("¿Qué hago si hay un terremoto?"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sufficient").value(true))
+                .andExpect(jsonPath("$.answer").value("Agáchate, cúbrete y sujétate."))
+                .andExpect(jsonPath("$.sources", hasSize(1)));
+    }
+
+    @Test
+    void theModelIsToldAboutTyposAndSynonyms() throws Exception {
+        mvc.perform(asStudent("que hago en un sizmo")).andExpect(status().isOk());
+
+        assertThat(ai.lastPrompt.message()).isEqualTo("que hago en un sizmo");
+        assertThat(ai.lastPrompt.instructions()).contains("errores de ortografía").contains("terremoto o temblor");
+    }
+
+    @Test
     void inactiveContentIsNotUsed() throws Exception {
         earthquake.deactivate();
         contents.flush();
