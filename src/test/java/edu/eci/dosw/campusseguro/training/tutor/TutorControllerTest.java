@@ -126,16 +126,15 @@ class TutorControllerTest {
                 "Agáchate, cúbrete y sujétate. Aléjate de ventanas y estanterías.", category));
     }
 
-    private static MockHttpServletRequestBuilder ask(String question, String permissions) {
+    private static MockHttpServletRequestBuilder ask(String question, String role) {
         return post(URL).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"question\":\"" + question + "\"}")
                 .header("X-User-Id", USER)
-                .header("X-User-Role", "ESTUDIANTE")
-                .header("X-User-Permission", permissions);
+                .header("X-User-Role", role);
     }
 
     private static MockHttpServletRequestBuilder asStudent(String question) {
-        return ask(question, "ms07:content:read,ms07:quiz:take,ms07:tutor:use");
+        return ask(question, "ESTUDIANTE");
     }
 
     @Test
@@ -246,15 +245,14 @@ class TutorControllerTest {
     void missingBodyAnswers400() throws Exception {
         mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON)
                         .header("X-User-Id", USER)
-                        .header("X-User-Role", "ESTUDIANTE")
-                        .header("X-User-Permission", "ms07:tutor:use"))
+                        .header("X-User-Role", "ESTUDIANTE"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
 
     @Test
     void withoutTutorPermissionAnswers403() throws Exception {
-        mvc.perform(ask("¿Qué hago si hay un sismo?", "ms07:content:read,ms07:quiz:take"))
+        mvc.perform(ask("¿Qué hago si hay un sismo?", "AUDITOR"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
 
@@ -263,7 +261,7 @@ class TutorControllerTest {
 
     @Test
     void adminWithoutTutorPermissionAnswers403() throws Exception {
-        mvc.perform(ask("¿Qué hago si hay un sismo?", "ms07:content:manage"))
+        mvc.perform(ask("¿Qué hago si hay un sismo?", "ADMIN"))
                 .andExpect(status().isForbidden());
     }
 

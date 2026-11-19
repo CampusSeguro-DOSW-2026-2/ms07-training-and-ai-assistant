@@ -12,7 +12,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-// Identity and permissions come from the Gateway in X-User-Id, X-User-Role and X-User-Permission. MS07 does not validate tokens:
+// Identity comes from X-User-Id and X-User-Role set by the Gateway. MS07 derives permissions from the official role-permission matrix and does not validate tokens:
 // it authorizes by permission.
 @Configuration
 @EnableWebSecurity

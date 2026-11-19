@@ -68,13 +68,11 @@ class ProgressControllerTest {
     }
 
     private static MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder request) {
-        return request.header("X-User-Id", ADMIN).header("X-User-Role", "ADMIN")
-                .header("X-User-Permission", "ms07:content:manage");
+        return request.header("X-User-Id", ADMIN).header("X-User-Role", "ADMIN");
     }
 
     private MockHttpServletRequestBuilder asUser(MockHttpServletRequestBuilder request) {
-        return request.header("X-User-Id", user).header("X-User-Role", "ESTUDIANTE")
-                .header("X-User-Permission", "ms07:content:read,ms07:quiz:take,ms07:tutor:use");
+        return request.header("X-User-Id", user).header("X-User-Role", "ESTUDIANTE");
     }
 
     private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String body) {

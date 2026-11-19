@@ -59,19 +59,15 @@ public class OpenApiConfig {
                 .addParameters("XUserRole", header(HeaderAuthenticationFilter.USER_ROLE, true,
                         "Comma-separated roles of the authenticated user. Set by the API Gateway.",
                         "BRIGADISTA,ESTUDIANTE"))
-                .addParameters("XUserPermission", header(HeaderAuthenticationFilter.USER_PERMISSION, true,
-                        "Comma-separated permissions of the authenticated user. Set by the API Gateway. "
-                                + "MS07 authorizes only by this header, never by role name.",
-                        "ms07:content:read,ms07:quiz:take,ms07:tutor:use"))
                 .addParameters("XCorrelationId", header(CorrelationIdFilter.HEADER, false,
                         "Request trace id (UUID v4).", CORRELATION_EXAMPLE))
                 .addResponses("BadRequest", error("Validation failed: states the field and the rule.",
                         400, "VALIDACION", "Datos inválidos.",
                         List.of(new ErrorResponse.FieldError("name", "El nombre es obligatorio."))))
                 .addResponses("Unauthorized", error(
-                        "Identity headers are missing (X-User-Id / X-User-Role / X-User-Permission).",
+                        "Identity headers are missing (X-User-Id / X-User-Role).",
                         401, "NO_AUTENTICADO", "Faltan las cabeceras de identidad.", List.of()))
-                .addResponses("Forbidden", error("X-User-Permission does not include the permission in x-permiso.",
+                .addResponses("Forbidden", error("None of the roles in X-User-Role has the permission required by the endpoint.",
                         403, "PROHIBIDO", "No tiene permiso para realizar esta operación.", List.of()))
                 .addResponses("NotFound", error("The resource does not exist.",
                         404, "NO_ENCONTRADO", "La categoría no existe.", List.of()))
@@ -84,11 +80,12 @@ public class OpenApiConfig {
                         .title("MS07 Training and AI assistant")
                         .version("v1")
                         .description("Learning center, contents, evaluations, progress and AI tutor of CampusSeguro.\n\n"
-                                + "**Identity inputs:** protected endpoints receive `X-User-Id`, `X-User-Role` "
-                                + "and `X-User-Permission` (comma-separated permissions), set by the API Gateway; "
-                                + "all of them accept `X-Correlation-ID`. If any identity header is missing, MS07 "
-                                + "answers 401. Access is decided only by `X-User-Permission`: each operation "
-                                + "declares the permission it requires in `x-permiso`."))
+                                + "**Identity inputs:** protected endpoints receive `X-User-Id` and "
+                                + "`X-User-Role` (comma-separated roles), set by the API Gateway; requests "
+                                + "also accept `X-Correlation-ID`. If an identity header is missing, MS07 "
+                                + "answers 401. Access is decided by deriving permissions from the roles "
+                                + "according to the official role-permission matrix; each operation declares "
+                                + "the required permission in `x-permiso`."))
                 .servers(List.of(
                         new Server().url("http://localhost:8080").description("External access (API Gateway)"),
                         new Server().url("http://localhost:8087").description("MS07 directly, development only")))
@@ -113,7 +110,6 @@ public class OpenApiConfig {
         if (secured) {
             parameters.add(new Parameter().$ref(PARAMETERS + "XUserId"));
             parameters.add(new Parameter().$ref(PARAMETERS + "XUserRole"));
-            parameters.add(new Parameter().$ref(PARAMETERS + "XUserPermission"));
         }
         parameters.add(new Parameter().$ref(PARAMETERS + "XCorrelationId"));
         if (operation.getParameters() != null) {

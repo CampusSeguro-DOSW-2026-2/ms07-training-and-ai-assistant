@@ -76,8 +76,7 @@ class TutorAuditFailureTest {
         mvc.perform(post("/api/v1/tutor/questions").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"question\":\"¿Qué hago si hay un sismo?\"}")
                         .header("X-User-Id", "9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19")
-                        .header("X-User-Role", "ESTUDIANTE")
-                        .header("X-User-Permission", "ms07:tutor:use"))
+                        .header("X-User-Role", "ESTUDIANTE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sufficient").value(true));
     }
