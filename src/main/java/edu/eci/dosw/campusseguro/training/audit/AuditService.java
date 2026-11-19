@@ -1,6 +1,9 @@
 package edu.eci.dosw.campusseguro.training.audit;
 
+import edu.eci.dosw.campusseguro.training.audit.gateway.AuditGatewayPayload;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,9 +13,19 @@ import java.util.UUID;
 public class AuditService {
 
     private final AuditEventRepository auditEventRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AuditService(AuditEventRepository auditEventRepository) {
+        this(auditEventRepository, event -> {});
+    }
+
+    @Autowired
+    public AuditService(
+            AuditEventRepository auditEventRepository,
+            ApplicationEventPublisher eventPublisher
+    ) {
         this.auditEventRepository = auditEventRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -23,7 +36,6 @@ public class AuditService {
         save(userId, AuditEvent.TUTOR_QUERY, result.name());
     }
 
-    // Saves an event of the given type (one of the AuditEvent constants) in the current transaction.
     @Transactional
     public void register(UUID userId, String eventType) {
         save(userId, eventType, null);
@@ -44,5 +56,26 @@ public class AuditService {
         );
 
         auditEventRepository.save(event);
+
+        String gatewayCorrelationId = correlationId != null
+                ? correlationId
+                : UUID.randomUUID().toString();
+
+        AuditGatewayPayload payload = new AuditGatewayPayload(
+                event.getId(),
+                userId,
+                "MS07",
+                eventType,
+                null,
+                "EXITO",
+                event.getOccurredAt(),
+                gatewayCorrelationId,
+                result,
+                null,
+                null,
+                null
+        );
+
+        eventPublisher.publishEvent(payload);
     }
 }
