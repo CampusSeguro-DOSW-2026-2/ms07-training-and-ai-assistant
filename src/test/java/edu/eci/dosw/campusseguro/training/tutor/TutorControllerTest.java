@@ -126,15 +126,16 @@ class TutorControllerTest {
                 "Agáchate, cúbrete y sujétate. Aléjate de ventanas y estanterías.", category));
     }
 
-    private static MockHttpServletRequestBuilder ask(String question, String role) {
+    private static MockHttpServletRequestBuilder ask(String question, String permissions) {
         return post(URL).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"question\":\"" + question + "\"}")
                 .header("X-User-Id", USER)
-                .header("X-User-Role", role);
+                .header("X-User-Role", "ESTUDIANTE")
+                .header("X-User-Permission", permissions);
     }
 
     private static MockHttpServletRequestBuilder asStudent(String question) {
-        return ask(question, "ESTUDIANTE");
+        return ask(question, "ms07:content:read,ms07:quiz:take,ms07:tutor:use");
     }
 
     @Test
@@ -245,14 +246,15 @@ class TutorControllerTest {
     void missingBodyAnswers400() throws Exception {
         mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON)
                         .header("X-User-Id", USER)
-                        .header("X-User-Role", "ESTUDIANTE"))
+                        .header("X-User-Role", "ESTUDIANTE")
+                        .header("X-User-Permission", "ms07:tutor:use"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.codigo").value("VALIDACION"));
     }
 
     @Test
     void withoutTutorPermissionAnswers403() throws Exception {
-        mvc.perform(ask("¿Qué hago si hay un sismo?", "AUDITOR"))
+        mvc.perform(ask("¿Qué hago si hay un sismo?", "ms07:content:read,ms07:quiz:take"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("PROHIBIDO"));
 
@@ -261,7 +263,7 @@ class TutorControllerTest {
 
     @Test
     void adminWithoutTutorPermissionAnswers403() throws Exception {
-        mvc.perform(ask("¿Qué hago si hay un sismo?", "ADMIN"))
+        mvc.perform(ask("¿Qué hago si hay un sismo?", "ms07:content:manage"))
                 .andExpect(status().isForbidden());
     }
 
