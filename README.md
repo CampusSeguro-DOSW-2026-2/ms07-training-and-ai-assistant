@@ -62,35 +62,33 @@ Usuario (1) ──< (N) ResultadoEvaluacion >── (1) Evaluacion
 
 ## Probar en local
 
-MS07 no valida tokens. Autoriza solo por las cabeceras que pone el API Gateway:
+MS07 no valida tokens. Recibe la identidad del usuario mediante las cabeceras proporcionadas por el API Gateway y deriva internamente los permisos a partir de sus roles.
 
 | Cabecera | Contenido |
 |---|---|
 | `X-User-Id` | UUID del usuario |
-| `X-User-Role` | Rol(es) del usuario, separados por coma (informativo: no decide el acceso) |
-| `X-User-Permission` | Permisos del usuario, separados por coma. El acceso se decide solo con esta cabecera |
+| `X-User-Role` | Rol(es) del usuario, separados por coma |
 
-Si falta alguna de las tres, MS07 responde 401 `NO_AUTENTICADO`. Si `X-User-Permission` llega vacía, el usuario queda autenticado sin permisos y recibe 403 `PROHIBIDO`.
+Ambas cabeceras son obligatorias. Si falta alguna, MS07 responde 401 `NO_AUTENTICADO`. MS07 no utiliza `X-User-Permission` para autorizar solicitudes.
 
-Permisos de MS07: `ms07:content:read`, `ms07:quiz:take`, `ms07:tutor:use`, `ms07:content:manage`.
+La asignación de permisos se realiza según el rol:
+
+- `ESTUDIANTE`, `PROFESOR`, `ADMINISTRATIVO`, `BRIGADISTA`, `COORDINADOR` y `ORGANIZADOR`: `ms07:content:read`, `ms07:quiz:take` y `ms07:tutor:use`.
+- `ADMIN`: `ms07:content:manage`.
+- `AUDITOR`: no recibe permisos de acceso a los recursos funcionales de MS07.
+
+Si el usuario está autenticado, pero su rol no tiene el permiso requerido, MS07 responde 403 `PROHIBIDO`.
 
 ```bash
-# Comunidad: 200
-curl -i http://localhost:8087/api/v1/training/categories \
-  -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
-  -H "X-User-Role: ESTUDIANTE" \
-  -H "X-User-Permission: ms07:content:read,ms07:quiz:take,ms07:tutor:use"
-
-# Sin X-User-Permission: 401
+# Estudiante: acceso a categorías
 curl -i http://localhost:8087/api/v1/training/categories \
   -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
   -H "X-User-Role: ESTUDIANTE"
 
-# Auditor (X-User-Permission vacía; en curl se envía con punto y coma): 403
+# Auditor: autenticado, pero sin permiso para consultar categorías
 curl -i http://localhost:8087/api/v1/training/categories \
   -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
-  -H "X-User-Role: AUDITOR" \
-  -H "X-User-Permission;"
+  -H "X-User-Role: AUDITOR"
 ```
 
 ## Tutor: proveedor de IA
@@ -122,7 +120,6 @@ curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
   -H "Content-Type: application/json" \
   -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
   -H "X-User-Role: ESTUDIANTE" \
-  -H "X-User-Permission: ms07:content:read,ms07:quiz:take,ms07:tutor:use" \
   -d '{"question":"¿Qué hago si hay un sismo mientras estoy en clase?"}'
 ```
 
