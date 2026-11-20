@@ -47,24 +47,24 @@ public class CategoryController {
     @PostMapping
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CategoryRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(CategoryResponse.from(service.create(request)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CategoryResponse.from(service.create(CurrentUser.id(), request)));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public CategoryResponse update(@PathVariable UUID id, @Valid @RequestBody CategoryRequest request) {
-        return CategoryResponse.from(service.update(id, request));
+        return CategoryResponse.from(service.update(id, CurrentUser.id(), request));
     }
 
     @PatchMapping("/{id}/deactivate")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public CategoryResponse deactivate(@PathVariable UUID id) {
-        return CategoryResponse.from(service.deactivate(id));
+        return CategoryResponse.from(service.deactivate(id, CurrentUser.id()));
     }
 
     @PatchMapping("/{id}/reactivate")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public CategoryResponse reactivate(@PathVariable UUID id) {
-        return CategoryResponse.from(service.reactivate(id));
+        return CategoryResponse.from(service.reactivate(id, CurrentUser.id()));
     }
 }

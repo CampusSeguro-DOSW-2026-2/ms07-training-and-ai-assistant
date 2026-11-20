@@ -57,13 +57,11 @@ class EvaluationAttemptControllerTest {
     }
 
     private static MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder request) {
-        return request.header("X-User-Id", "3f6c2a9e-8b1d-4c7a-9e2f-1a5b7c9d0e42")
-                .header("X-User-Role", "ADMIN");
+        return request.header("X-User-Id", "3f6c2a9e-8b1d-4c7a-9e2f-1a5b7c9d0e42").header("X-User-Role", "ADMIN").header("X-User-Permission", "ms07:content:manage");
     }
 
     private static MockHttpServletRequestBuilder asStudent(MockHttpServletRequestBuilder request) {
-        return request.header("X-User-Id", "9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19")
-                .header("X-User-Role", "ESTUDIANTE");
+        return request.header("X-User-Id", "9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19").header("X-User-Role", "ESTUDIANTE").header("X-User-Permission", "ms07:content:read,ms07:quiz:take,ms07:tutor:use");
     }
 
     private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String body) {

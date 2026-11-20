@@ -56,24 +56,24 @@ public class ContentController {
     @PostMapping
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public ResponseEntity<ContentResponse> create(@Valid @RequestBody ContentRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ContentResponse.from(service.create(request)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ContentResponse.from(service.create(CurrentUser.id(), request)));
     }
 
     @PutMapping("/{id}")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public ContentResponse update(@PathVariable UUID id, @Valid @RequestBody ContentRequest request) {
-        return ContentResponse.from(service.update(id, request));
+        return ContentResponse.from(service.update(id, CurrentUser.id(), request));
     }
 
     @PatchMapping("/{id}/deactivate")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public ContentResponse deactivate(@PathVariable UUID id) {
-        return ContentResponse.from(service.deactivate(id));
+        return ContentResponse.from(service.deactivate(id, CurrentUser.id()));
     }
 
     @PatchMapping("/{id}/reactivate")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public ContentResponse reactivate(@PathVariable UUID id) {
-        return ContentResponse.from(service.reactivate(id));
+        return ContentResponse.from(service.reactivate(id, CurrentUser.id()));
     }
 }

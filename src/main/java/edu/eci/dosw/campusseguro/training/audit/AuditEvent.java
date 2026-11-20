@@ -17,6 +17,16 @@ public class AuditEvent {
     public static final String EVALUATION_CREATED = "EVALUACION_CREADA";
     public static final String EVALUATION_UPDATED = "EVALUACION_ACTUALIZADA";
     public static final String ATTEMPT_REGISTERED = "INTENTO_REGISTRADO";
+    public static final String EVALUATION_DEACTIVATED = "EVALUACION_DESACTIVADA";
+    public static final String EVALUATION_REACTIVATED = "EVALUACION_REACTIVADA";
+    public static final String CATEGORY_CREATED = "CATEGORIA_CREADA";
+    public static final String CATEGORY_UPDATED = "CATEGORIA_ACTUALIZADA";
+    public static final String CATEGORY_DEACTIVATED = "CATEGORIA_DESACTIVADA";
+    public static final String CATEGORY_REACTIVATED = "CATEGORIA_REACTIVADA";
+    public static final String CONTENT_CREATED = "CONTENIDO_CREADO";
+    public static final String CONTENT_UPDATED = "CONTENIDO_ACTUALIZADO";
+    public static final String CONTENT_DEACTIVATED = "CONTENIDO_DESACTIVADO";
+    public static final String CONTENT_REACTIVATED = "CONTENIDO_REACTIVADO";
 
     @Id
     private UUID id;
