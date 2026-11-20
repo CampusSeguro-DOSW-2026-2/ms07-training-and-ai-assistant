@@ -13,30 +13,48 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-// Reads the headers set by the Gateway (X-User-Id, X-User-Role and X-User-Permission) and builds
-// the user identity. The authorities are the permissions in X-User-Permission (comma separated):
-// roles are data owned by MS01, so MS07 never maps a role name to permissions.
-// If any of the three headers is missing the request stays anonymous and the chain answers 401.
-// An empty X-User-Permission is valid: the user is authenticated with no permissions (403).
 public class HeaderAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String USER_ID = "X-User-Id";
     public static final String USER_ROLE = "X-User-Role";
-    public static final String USER_PERMISSION = "X-User-Permission";
+
+    private static final Map<String, Set<String>> ROLE_PERMISSIONS = Map.of(
+            "ESTUDIANTE", Set.of(
+                    Permissions.CONTENT_READ, Permissions.QUIZ_TAKE, Permissions.TUTOR_USE),
+            "PROFESOR", Set.of(
+                    Permissions.CONTENT_READ, Permissions.QUIZ_TAKE, Permissions.TUTOR_USE),
+            "ADMINISTRATIVO", Set.of(
+                    Permissions.CONTENT_READ, Permissions.QUIZ_TAKE, Permissions.TUTOR_USE),
+            "BRIGADISTA", Set.of(
+                    Permissions.CONTENT_READ, Permissions.QUIZ_TAKE, Permissions.TUTOR_USE),
+            "COORDINADOR", Set.of(
+                    Permissions.CONTENT_READ, Permissions.QUIZ_TAKE, Permissions.TUTOR_USE),
+            "ORGANIZADOR", Set.of(
+                    Permissions.CONTENT_READ, Permissions.QUIZ_TAKE, Permissions.TUTOR_USE),
+            "ADMIN", Set.of(Permissions.CONTENT_MANAGE),
+            "AUDITOR", Set.of()
+    );
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String userId = request.getHeader(USER_ID);
-        String role = request.getHeader(USER_ROLE);
-        String permissionHeader = request.getHeader(USER_PERMISSION);
 
-        if (hasText(userId) && hasText(role) && permissionHeader != null) {
-            List<SimpleGrantedAuthority> authorities = Arrays.stream(permissionHeader.split(","))
+        String userId = request.getHeader(USER_ID);
+        String roleHeader = request.getHeader(USER_ROLE);
+
+        if (hasText(userId) && hasText(roleHeader)) {
+            Set<String> permissions = Arrays.stream(roleHeader.split(","))
                     .map(String::trim)
-                    .filter(permission -> !permission.isEmpty())
-                    .distinct()
+                    .filter(role -> !role.isEmpty())
+                    .map(role -> ROLE_PERMISSIONS.getOrDefault(role, Set.of()))
+                    .flatMap(Set::stream)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            List<SimpleGrantedAuthority> authorities = permissions.stream()
+                    .sorted()
                     .map(SimpleGrantedAuthority::new)
                     .toList();
 
@@ -45,6 +63,7 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken.authenticated(userId.trim(), null, authorities));
             SecurityContextHolder.setContext(context);
         }
+
         chain.doFilter(request, response);
     }
 

@@ -34,41 +34,39 @@ class HeaderAuthenticationFilterTest {
     }
 
     private List<String> authorities(Authentication auth) {
-        return auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+        return auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).sorted().toList();
     }
 
     @Test
-    void permissionsHeaderBecomesAuthorities() throws Exception {
+    void studentRoleGrantsCommunityPermissionsWithoutPermissionHeader() throws Exception {
         MockHttpServletRequest request = request();
         request.addHeader("X-User-Id", USER);
         request.addHeader("X-User-Role", "ESTUDIANTE");
-        request.addHeader("X-User-Permission", "ms07:content:read, ms07:quiz:take,ms07:content:read");
 
         Authentication auth = run(request);
 
         assertThat(auth).isNotNull();
         assertThat(auth.getName()).isEqualTo(USER);
-        assertThat(authorities(auth)).containsExactly("ms07:content:read", "ms07:quiz:take");
+        assertThat(authorities(auth)).containsExactly(
+                Permissions.CONTENT_READ, Permissions.QUIZ_TAKE, Permissions.TUTOR_USE);
     }
 
     @Test
-    void roleNameDoesNotGrantPermissions() throws Exception {
+    void adminRoleOnlyGrantsContentManagement() throws Exception {
         MockHttpServletRequest request = request();
         request.addHeader("X-User-Id", USER);
         request.addHeader("X-User-Role", "ADMIN");
-        request.addHeader("X-User-Permission", "ms07:tutor:use");
 
         Authentication auth = run(request);
 
-        assertThat(authorities(auth)).containsExactly("ms07:tutor:use");
+        assertThat(authorities(auth)).containsExactly(Permissions.CONTENT_MANAGE);
     }
 
     @Test
-    void emptyPermissionHeaderAuthenticatesWithoutAuthorities() throws Exception {
+    void auditorRoleAuthenticatesWithoutPermissions() throws Exception {
         MockHttpServletRequest request = request();
         request.addHeader("X-User-Id", USER);
         request.addHeader("X-User-Role", "AUDITOR");
-        request.addHeader("X-User-Permission", "");
 
         Authentication auth = run(request);
 
@@ -77,19 +75,36 @@ class HeaderAuthenticationFilterTest {
     }
 
     @Test
-    void missingPermissionHeaderStaysAnonymous() throws Exception {
+    void multipleRolesGrantUnionOfPermissions() throws Exception {
         MockHttpServletRequest request = request();
         request.addHeader("X-User-Id", USER);
-        request.addHeader("X-User-Role", "ESTUDIANTE");
+        request.addHeader("X-User-Role", "ESTUDIANTE, ADMIN");
 
-        assertThat(run(request)).isNull();
+        Authentication auth = run(request);
+
+        assertThat(authorities(auth)).containsExactly(
+                Permissions.CONTENT_MANAGE,
+                Permissions.CONTENT_READ,
+                Permissions.QUIZ_TAKE,
+                Permissions.TUTOR_USE);
+    }
+
+    @Test
+    void unknownRoleDoesNotGrantPermissions() throws Exception {
+        MockHttpServletRequest request = request();
+        request.addHeader("X-User-Id", USER);
+        request.addHeader("X-User-Role", "UNKNOWN_ROLE");
+
+        Authentication auth = run(request);
+
+        assertThat(auth).isNotNull();
+        assertThat(auth.getAuthorities()).isEmpty();
     }
 
     @Test
     void missingUserIdStaysAnonymous() throws Exception {
         MockHttpServletRequest request = request();
         request.addHeader("X-User-Role", "ESTUDIANTE");
-        request.addHeader("X-User-Permission", "ms07:content:read");
 
         assertThat(run(request)).isNull();
     }
@@ -98,7 +113,6 @@ class HeaderAuthenticationFilterTest {
     void missingRoleStaysAnonymous() throws Exception {
         MockHttpServletRequest request = request();
         request.addHeader("X-User-Id", USER);
-        request.addHeader("X-User-Permission", "ms07:content:read");
 
         assertThat(run(request)).isNull();
     }
