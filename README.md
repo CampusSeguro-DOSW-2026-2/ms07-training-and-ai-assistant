@@ -48,48 +48,88 @@ Usuario (1) ──< (N) ResultadoEvaluacion >── (1) Evaluacion
 
 ## Contratos API
 
-| Método | Endpoint | HU / RF |
-|---|---|---|
-| GET | `/api/v1/contents?category=` | HU-3a / RF-09 |
-| GET | `/api/v1/contents/{id}` | HU-3a / RF-09 |
-| POST | `/api/v1/contents/{id}/progress` | HU-3a / RF-10 |
-| GET | `/api/v1/users/{userId}/progress` | HU-3a / RF-10 |
-| GET | `/api/v1/evaluations?category=` | HU-3b / RF-11 |
-| POST | `/api/v1/evaluations/{id}/submit` | HU-3b / RF-11 |
-| GET | `/api/v1/users/{userId}/evaluation-results` | HU-3b / RF-11 |
+Base URL local: `http://localhost:8087`.
 
+Todas las rutas protegidas reciben los encabezados de identidad y autorización propagados por el API Gateway: `X-User-Id`, `X-User-Role` y `X-User-Permission`. Los endpoints que reciben datos utilizan JSON.
 
+| Método | Endpoint | Descripción | Permiso |
+|---|---|---|---|
+| GET | `/api/v1/training/categories` | Listar categorías (`includeInactive`, `page`, `size`) | `ms07:content:read` |
+| POST | `/api/v1/training/categories` | Crear categoría | `ms07:content:manage` |
+| PUT | `/api/v1/training/categories/{id}` | Actualizar categoría | `ms07:content:manage` |
+| PATCH | `/api/v1/training/categories/{id}/deactivate` | Desactivar categoría | `ms07:content:manage` |
+| PATCH | `/api/v1/training/categories/{id}/reactivate` | Reactivar categoría | `ms07:content:manage` |
+| GET | `/api/v1/training/contents` | Listar contenidos (`categoryId`, `includeInactive`, `page`, `size`) | `ms07:content:read` |
+| GET | `/api/v1/training/contents/{id}` | Consultar contenido | `ms07:content:read` |
+| POST | `/api/v1/training/contents` | Crear contenido | `ms07:content:manage` |
+| PUT | `/api/v1/training/contents/{id}` | Actualizar contenido | `ms07:content:manage` |
+| PATCH | `/api/v1/training/contents/{id}/deactivate` | Desactivar contenido | `ms07:content:manage` |
+| PATCH | `/api/v1/training/contents/{id}/reactivate` | Reactivar contenido | `ms07:content:manage` |
+| POST | `/api/v1/training/contents/{id}/views` | Registrar visualización de contenido | `ms07:content:read` |
+| GET | `/api/v1/training/progress/me` | Consultar progreso del usuario autenticado | `ms07:quiz:take` |
+| GET | `/api/v1/training/evaluations` | Listar evaluaciones (`categoryId`, `includeInactive`, `page`, `size`) | `ms07:quiz:take` |
+| GET | `/api/v1/training/evaluations/{id}` | Consultar evaluación | `ms07:quiz:take` |
+| POST | `/api/v1/training/evaluations` | Crear evaluación | `ms07:content:manage` |
+| PUT | `/api/v1/training/evaluations/{id}` | Actualizar evaluación | `ms07:content:manage` |
+| POST | `/api/v1/training/evaluations/{id}/attempts` | Presentar intento de evaluación | `ms07:quiz:take` |
+| PATCH | `/api/v1/training/evaluations/{id}/deactivate` | Desactivar evaluación | `ms07:content:manage` |
+| PATCH | `/api/v1/training/evaluations/{id}/reactivate` | Reactivar evaluación | `ms07:content:manage` |
+| POST | `/api/v1/tutor/questions` | Consultar al tutor IA | `ms07:tutor:use` |
+
+La especificación OpenAPI se encuentra en [`swagger.yml`](swagger.yml).
 
 ## Probar en local
 
-MS07 no valida tokens. Recibe la identidad del usuario mediante las cabeceras proporcionadas por el API Gateway y deriva internamente los permisos a partir de sus roles.
+MS07 recibe la identidad y los permisos propagados por el API Gateway.
+La autenticación del token se realiza en Gateway; MS07 no valida JWT.
+
+Cabeceras recibidas:
 
 | Cabecera | Contenido |
 |---|---|
 | `X-User-Id` | UUID del usuario |
-| `X-User-Role` | Rol(es) del usuario, separados por coma |
+| `X-User-Role` | Rol(es) propagados por Gateway |
+| `X-User-Permission` | Permisos efectivos propagados por Gateway |
+| `X-Correlation-ID` | Identificador de correlación de la solicitud |
 
-Ambas cabeceras son obligatorias. Si falta alguna, MS07 responde 401 `NO_AUTENTICADO`. MS07 no utiliza `X-User-Permission` para autorizar solicitudes.
+**La autorización en MS07 se realiza mediante `X-User-Permission`.**
+MS07 no deriva permisos a partir de roles ni mantiene un mapa local de roles.
+Los permisos son administrados por MS01 y propagados por Gateway.
 
-La asignación de permisos se realiza según el rol:
+| Permiso | Acceso |
+|---|---|
+| `ms07:content:read` | Consultar categorías y contenidos; registrar visualizaciones |
+| `ms07:content:manage` | Crear, actualizar, desactivar y reactivar categorías, contenidos y evaluaciones |
+| `ms07:quiz:take` | Consultar evaluaciones, registrar intentos y consultar progreso |
+| `ms07:tutor:use` | Consultar al tutor CampusSeguro |
 
-- `ESTUDIANTE`, `PROFESOR`, `ADMINISTRATIVO`, `BRIGADISTA`, `COORDINADOR` y `ORGANIZADOR`: `ms07:content:read`, `ms07:quiz:take` y `ms07:tutor:use`.
-- `ADMIN`: `ms07:content:manage`.
-- `AUDITOR`: no recibe permisos de acceso a los recursos funcionales de MS07.
+Si falta la identidad requerida, MS07 responde 401 `NO_AUTENTICADO`.
+Si el usuario no tiene el permiso requerido, responde 403 `PROHIBIDO`.
 
-Si el usuario está autenticado, pero su rol no tiene el permiso requerido, MS07 responde 403 `PROHIBIDO`.
+Ejemplo de consulta de categorías:
 
 ```bash
-# Estudiante: acceso a categorías
 curl -i http://localhost:8087/api/v1/training/categories \
-  -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
-  -H "X-User-Role: ESTUDIANTE"
-
-# Auditor: autenticado, pero sin permiso para consultar categorías
-curl -i http://localhost:8087/api/v1/training/categories \
-  -H "X-User-Id: 9b2d4e61-5c3a-4f8e-a7d1-2e6f8c0b4a19" \
-  -H "X-User-Role: AUDITOR"
+  -H "X-User-Id: <UUID_DEL_USUARIO>" \
+  -H "X-User-Role: ESTUDIANTE" \
+  -H "X-User-Permission: ms07:content:read" \
+  -H "X-Correlation-ID: <ID_DE_CORRELACION>"
 ```
+
+Ejemplo de consulta al tutor:
+
+```bash
+curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: <UUID_DEL_USUARIO>" \
+  -H "X-User-Role: ESTUDIANTE" \
+  -H "X-User-Permission: ms07:tutor:use" \
+  -H "X-Correlation-ID: <ID_DE_CORRELACION>" \
+  -d '{"question":"¿Qué hago si hay un sismo mientras estoy en clase?"}'
+```
+
+La especificación OpenAPI está disponible en `swagger.yml`.
+Cada operación documenta el permiso requerido mediante la extensión `x-permiso`.
 
 ## Tutor: proveedor de IA
 
