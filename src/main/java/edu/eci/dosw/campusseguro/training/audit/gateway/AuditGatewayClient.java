@@ -30,6 +30,12 @@ public class AuditGatewayClient {
         this.serviceKey = serviceKey;
     }
 
+    private String auditEndpoint() {
+        String baseUrl = gatewayUrl.trim().replaceAll("/+$", "");
+        String path = "/api/v1/audit/events";
+        return baseUrl.endsWith(path) ? baseUrl : baseUrl + path;
+    }
+
     @Async("auditTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void send(AuditGatewayPayload payload) {
@@ -42,15 +48,20 @@ public class AuditGatewayClient {
 
         try {
             restClient.post()
-                    .uri(gatewayUrl)
+                    .uri(auditEndpoint())
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-Service-Key", serviceKey)
-                    .header("X-Service-Name", "MS07")
                     .header("X-Correlation-ID", payload.correlationId())
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .headers(headers -> {
                         if (payload.userId() != null) {
                             headers.set("X-User-Id", payload.userId().toString());
+                        }
+                        if (payload.userRole() != null && !payload.userRole().isBlank()) {
+                            headers.set("X-User-Role", payload.userRole());
+                        }
+                        if (payload.userPermission() != null && !payload.userPermission().isBlank()) {
+                            headers.set("X-User-Permission", payload.userPermission());
                         }
                     })
                     .body(payload)

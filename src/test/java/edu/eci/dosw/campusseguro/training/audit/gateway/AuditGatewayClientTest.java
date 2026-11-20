@@ -65,7 +65,6 @@ class AuditGatewayClientTest {
         server.expect(requestTo(GATEWAY_URL))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("X-Service-Key", SERVICE_KEY))
-                .andExpect(header("X-Service-Name", "MS07"))
                 .andExpect(header("X-Correlation-ID", "correlation-test-123"))
                 .andExpect(header("X-User-Id", userId.toString()))
                 .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
@@ -113,7 +112,6 @@ class AuditGatewayClientTest {
         server.expect(requestTo(GATEWAY_URL))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("X-Service-Key", SERVICE_KEY))
-                .andExpect(header("X-Service-Name", "MS07"))
                 .andExpect(header("X-Correlation-ID", "anonymous-correlation"))
                 .andExpect(request -> {
                     org.junit.jupiter.api.Assertions.assertFalse(

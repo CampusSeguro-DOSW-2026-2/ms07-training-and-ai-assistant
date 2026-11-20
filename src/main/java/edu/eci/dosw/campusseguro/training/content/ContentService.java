@@ -1,5 +1,7 @@
 package edu.eci.dosw.campusseguro.training.content;
 
+import edu.eci.dosw.campusseguro.training.audit.AuditEvent;
+import edu.eci.dosw.campusseguro.training.audit.AuditService;
 import edu.eci.dosw.campusseguro.training.category.Category;
 import edu.eci.dosw.campusseguro.training.category.CategoryService;
 import edu.eci.dosw.campusseguro.training.common.Status;
@@ -22,10 +24,13 @@ public class ContentService {
 
     private final ContentRepository repository;
     private final CategoryService categoryService;
+    private final AuditService auditService;
 
-    public ContentService(ContentRepository repository, CategoryService categoryService) {
+    public ContentService(ContentRepository repository, CategoryService categoryService,
+                          AuditService auditService) {
         this.repository = repository;
         this.categoryService = categoryService;
+        this.auditService = auditService;
     }
 
     // Managers (includeInactive) see every content; the community sees every active content,
@@ -64,6 +69,13 @@ public class ContentService {
     }
 
     @Transactional
+    public Content create(UUID userId, ContentRequest request) {
+        Content content = create(request);
+        auditContent(userId, AuditEvent.CONTENT_CREATED, content);
+        return content;
+    }
+
+    @Transactional
     public Content create(ContentRequest request) {
         Category category = categoryService.requireActive(request.categoryId());
         return repository.save(new Content(request.title().trim(), request.body().trim(), category));
@@ -71,12 +83,26 @@ public class ContentService {
 
     // The current category can be kept even if it is now inactive; a new one must be active.
     @Transactional
+    public Content update(UUID id, UUID userId, ContentRequest request) {
+        Content content = update(id, request);
+        auditContent(userId, AuditEvent.CONTENT_UPDATED, content);
+        return content;
+    }
+
+    @Transactional
     public Content update(UUID id, ContentRequest request) {
         Content content = get(id);
         Category category = content.getCategory().getId().equals(request.categoryId())
                 ? content.getCategory()
                 : categoryService.requireActive(request.categoryId());
         content.update(request.title().trim(), request.body().trim(), category);
+        return content;
+    }
+
+    @Transactional
+    public Content deactivate(UUID id, UUID userId) {
+        Content content = deactivate(id);
+        auditContent(userId, AuditEvent.CONTENT_DEACTIVATED, content);
         return content;
     }
 
@@ -91,6 +117,13 @@ public class ContentService {
     }
 
     @Transactional
+    public Content reactivate(UUID id, UUID userId) {
+        Content content = reactivate(id);
+        auditContent(userId, AuditEvent.CONTENT_REACTIVATED, content);
+        return content;
+    }
+
+    @Transactional
     public Content reactivate(UUID id) {
         Content content = get(id);
         if (content.isActive()) {
@@ -98,5 +131,11 @@ public class ContentService {
         }
         content.reactivate();
         return content;
+    }
+
+    private void auditContent(UUID userId, String eventType, Content content) {
+        auditService.register(userId, eventType,
+                "contenido:" + content.getId(),
+                java.util.Map.of("categoria_id", content.getCategory().getId().toString()));
     }
 }

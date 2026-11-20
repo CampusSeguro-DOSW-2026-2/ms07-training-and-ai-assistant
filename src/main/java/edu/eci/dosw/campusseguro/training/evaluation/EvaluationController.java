@@ -74,12 +74,12 @@ public class EvaluationController {
     @PatchMapping("/{id}/deactivate")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public EvaluationResponse deactivate(@PathVariable UUID id) {
-        return EvaluationResponse.from(service.deactivate(id));
+        return EvaluationResponse.from(service.deactivate(id, CurrentUser.id()));
     }
 
     @PatchMapping("/{id}/reactivate")
     @RequiresPermission(Permissions.CONTENT_MANAGE)
     public EvaluationResponse reactivate(@PathVariable UUID id) {
-        return EvaluationResponse.from(service.reactivate(id));
+        return EvaluationResponse.from(service.reactivate(id, CurrentUser.id()));
     }
 }

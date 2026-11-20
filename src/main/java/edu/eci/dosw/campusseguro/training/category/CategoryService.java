@@ -1,5 +1,7 @@
 package edu.eci.dosw.campusseguro.training.category;
 
+import edu.eci.dosw.campusseguro.training.audit.AuditEvent;
+import edu.eci.dosw.campusseguro.training.audit.AuditService;
 import edu.eci.dosw.campusseguro.training.common.Status;
 import edu.eci.dosw.campusseguro.training.exception.BusinessRuleException;
 import edu.eci.dosw.campusseguro.training.exception.ConflictException;
@@ -20,9 +22,11 @@ public class CategoryService {
     private static final String NAME_TAKEN = "Ya existe una categoría con ese nombre.";
 
     private final CategoryRepository repository;
+    private final AuditService auditService;
 
-    public CategoryService(CategoryRepository repository) {
+    public CategoryService(CategoryRepository repository, AuditService auditService) {
         this.repository = repository;
+        this.auditService = auditService;
     }
 
     public Page<Category> list(boolean includeInactive, Pageable pageable) {
@@ -47,12 +51,28 @@ public class CategoryService {
     }
 
     @Transactional
+    public Category create(UUID userId, CategoryRequest request) {
+        Category category = create(request);
+        auditService.register(userId, AuditEvent.CATEGORY_CREATED,
+                "categoria:" + category.getId(), null);
+        return category;
+    }
+
+    @Transactional
     public Category create(CategoryRequest request) {
         String name = request.name().trim();
         if (repository.existsByNameIgnoreCase(name)) {
             throw new ConflictException("name", NAME_TAKEN);
         }
         return save(new Category(name, clean(request.description())));
+    }
+
+    @Transactional
+    public Category update(UUID id, UUID userId, CategoryRequest request) {
+        Category category = update(id, request);
+        auditService.register(userId, AuditEvent.CATEGORY_UPDATED,
+                "categoria:" + category.getId(), null);
+        return category;
     }
 
     @Transactional
@@ -67,12 +87,28 @@ public class CategoryService {
     }
 
     @Transactional
+    public Category deactivate(UUID id, UUID userId) {
+        Category category = deactivate(id);
+        auditService.register(userId, AuditEvent.CATEGORY_DEACTIVATED,
+                "categoria:" + category.getId(), null);
+        return category;
+    }
+
+    @Transactional
     public Category deactivate(UUID id) {
         Category category = get(id);
         if (!category.isActive()) {
             throw new ConflictException("La categoría ya está inactiva.");
         }
         category.deactivate();
+        return category;
+    }
+
+    @Transactional
+    public Category reactivate(UUID id, UUID userId) {
+        Category category = reactivate(id);
+        auditService.register(userId, AuditEvent.CATEGORY_REACTIVATED,
+                "categoria:" + category.getId(), null);
         return category;
     }
 

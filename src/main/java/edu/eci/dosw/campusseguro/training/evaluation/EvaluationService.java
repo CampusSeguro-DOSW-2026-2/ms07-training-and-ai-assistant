@@ -75,7 +75,8 @@ public class EvaluationService {
         Evaluation evaluation = new Evaluation(request.title().trim(), request.topic().trim(), category);
         addQuestions(evaluation, request.questions());
         Evaluation saved = repository.save(evaluation);
-        auditService.register(userId, AuditEvent.EVALUATION_CREATED);
+        auditService.register(userId, AuditEvent.EVALUATION_CREATED,
+                "evaluacion:" + saved.getId(), null);
         return saved;
     }
 
@@ -94,7 +95,8 @@ public class EvaluationService {
         evaluation.update(request.title().trim(), request.topic().trim(), category);
         evaluation.clearQuestions();
         addQuestions(evaluation, request.questions());
-        auditService.register(userId, AuditEvent.EVALUATION_UPDATED);
+        auditService.register(userId, AuditEvent.EVALUATION_UPDATED,
+                "evaluacion:" + evaluation.getId(), null);
         return evaluation;
     }
 
@@ -109,12 +111,28 @@ public class EvaluationService {
     }
 
     @Transactional
+    public Evaluation deactivate(UUID id, UUID userId) {
+        Evaluation evaluation = deactivate(id);
+        auditService.register(userId, AuditEvent.EVALUATION_DEACTIVATED,
+                "evaluacion:" + evaluation.getId(), null);
+        return evaluation;
+    }
+
+    @Transactional
     public Evaluation reactivate(UUID id) {
         Evaluation evaluation = get(id);
         if (evaluation.isActive()) {
             throw new ConflictException("La evaluación ya está activa.");
         }
         evaluation.reactivate();
+        return evaluation;
+    }
+
+    @Transactional
+    public Evaluation reactivate(UUID id, UUID userId) {
+        Evaluation evaluation = reactivate(id);
+        auditService.register(userId, AuditEvent.EVALUATION_REACTIVATED,
+                "evaluacion:" + evaluation.getId(), null);
         return evaluation;
     }
 
@@ -161,7 +179,9 @@ public class EvaluationService {
         int total = evaluation.getQuestions().size();
         int score = Math.round(correctAnswers * 100f / total);
         EvaluationAttempt attempt = attemptRepository.save(new EvaluationAttempt(userId, evaluation, score));
-        auditService.register(userId, AuditEvent.ATTEMPT_REGISTERED);
+        auditService.register(userId, AuditEvent.ATTEMPT_REGISTERED,
+                "intento:" + attempt.getId(),
+                Map.of("evaluacion_id", evaluation.getId().toString()));
         return new AttemptResponse(attempt.getId(), evaluation.getId(), attempt.getTopic(), score, correctAnswers,
                 total, attempt.getAttemptedAt(), results);
     }
