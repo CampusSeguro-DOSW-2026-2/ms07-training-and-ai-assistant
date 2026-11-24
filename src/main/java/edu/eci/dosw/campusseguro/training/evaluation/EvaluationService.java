@@ -9,6 +9,8 @@ import edu.eci.dosw.campusseguro.training.exception.BadRequestException;
 import edu.eci.dosw.campusseguro.training.exception.BusinessRuleException;
 import edu.eci.dosw.campusseguro.training.exception.ConflictException;
 import edu.eci.dosw.campusseguro.training.exception.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class EvaluationService {
+
+    private static final Logger log = LoggerFactory.getLogger(EvaluationService.class);
 
     private static final String NOT_FOUND = "La evaluación no existe.";
 
@@ -75,7 +79,7 @@ public class EvaluationService {
         Evaluation evaluation = new Evaluation(request.title().trim(), request.topic().trim(), category);
         addQuestions(evaluation, request.questions());
         Evaluation saved = repository.save(evaluation);
-        auditService.register(userId, AuditEvent.EVALUATION_CREATED,
+        auditSafely(userId, AuditEvent.EVALUATION_CREATED,
                 "evaluacion:" + saved.getId(), null);
         return saved;
     }
@@ -95,7 +99,7 @@ public class EvaluationService {
         evaluation.update(request.title().trim(), request.topic().trim(), category);
         evaluation.clearQuestions();
         addQuestions(evaluation, request.questions());
-        auditService.register(userId, AuditEvent.EVALUATION_UPDATED,
+        auditSafely(userId, AuditEvent.EVALUATION_UPDATED,
                 "evaluacion:" + evaluation.getId(), null);
         return evaluation;
     }
@@ -113,7 +117,7 @@ public class EvaluationService {
     @Transactional
     public Evaluation deactivate(UUID id, UUID userId) {
         Evaluation evaluation = deactivate(id);
-        auditService.register(userId, AuditEvent.EVALUATION_DEACTIVATED,
+        auditSafely(userId, AuditEvent.EVALUATION_DEACTIVATED,
                 "evaluacion:" + evaluation.getId(), null);
         return evaluation;
     }
@@ -131,7 +135,7 @@ public class EvaluationService {
     @Transactional
     public Evaluation reactivate(UUID id, UUID userId) {
         Evaluation evaluation = reactivate(id);
-        auditService.register(userId, AuditEvent.EVALUATION_REACTIVATED,
+        auditSafely(userId, AuditEvent.EVALUATION_REACTIVATED,
                 "evaluacion:" + evaluation.getId(), null);
         return evaluation;
     }
@@ -179,11 +183,24 @@ public class EvaluationService {
         int total = evaluation.getQuestions().size();
         int score = Math.round(correctAnswers * 100f / total);
         EvaluationAttempt attempt = attemptRepository.save(new EvaluationAttempt(userId, evaluation, score));
-        auditService.register(userId, AuditEvent.ATTEMPT_REGISTERED,
+        auditSafely(userId, AuditEvent.ATTEMPT_REGISTERED,
                 "intento:" + attempt.getId(),
                 Map.of("evaluacion_id", evaluation.getId().toString()));
         return new AttemptResponse(attempt.getId(), evaluation.getId(), attempt.getTopic(), score, correctAnswers,
                 total, attempt.getAttemptedAt(), results);
+    }
+
+    private void auditSafely(
+            UUID userId,
+            String eventType,
+            String resource,
+            Map<String, Object> attributes
+    ) {
+        try {
+            auditService.register(userId, eventType, resource, attributes);
+        } catch (RuntimeException exception) {
+            log.warn("Could not persist audit event {}", eventType, exception);
+        }
     }
 
     private static void validateQuestions(List<EvaluationRequest.QuestionRequest> questions) {

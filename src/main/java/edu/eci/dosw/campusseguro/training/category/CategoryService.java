@@ -6,6 +6,8 @@ import edu.eci.dosw.campusseguro.training.common.Status;
 import edu.eci.dosw.campusseguro.training.exception.BusinessRuleException;
 import edu.eci.dosw.campusseguro.training.exception.ConflictException;
 import edu.eci.dosw.campusseguro.training.exception.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,8 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class CategoryService {
+
+    private static final Logger log = LoggerFactory.getLogger(CategoryService.class);
 
     private static final String NAME_TAKEN = "Ya existe una categoría con ese nombre.";
 
@@ -53,8 +57,8 @@ public class CategoryService {
     @Transactional
     public Category create(UUID userId, CategoryRequest request) {
         Category category = create(request);
-        auditService.register(userId, AuditEvent.CATEGORY_CREATED,
-                "categoria:" + category.getId(), null);
+        auditSafely(userId, AuditEvent.CATEGORY_CREATED,
+                "categoria:" + category.getId());
         return category;
     }
 
@@ -70,8 +74,8 @@ public class CategoryService {
     @Transactional
     public Category update(UUID id, UUID userId, CategoryRequest request) {
         Category category = update(id, request);
-        auditService.register(userId, AuditEvent.CATEGORY_UPDATED,
-                "categoria:" + category.getId(), null);
+        auditSafely(userId, AuditEvent.CATEGORY_UPDATED,
+                "categoria:" + category.getId());
         return category;
     }
 
@@ -89,8 +93,8 @@ public class CategoryService {
     @Transactional
     public Category deactivate(UUID id, UUID userId) {
         Category category = deactivate(id);
-        auditService.register(userId, AuditEvent.CATEGORY_DEACTIVATED,
-                "categoria:" + category.getId(), null);
+        auditSafely(userId, AuditEvent.CATEGORY_DEACTIVATED,
+                "categoria:" + category.getId());
         return category;
     }
 
@@ -107,8 +111,8 @@ public class CategoryService {
     @Transactional
     public Category reactivate(UUID id, UUID userId) {
         Category category = reactivate(id);
-        auditService.register(userId, AuditEvent.CATEGORY_REACTIVATED,
-                "categoria:" + category.getId(), null);
+        auditSafely(userId, AuditEvent.CATEGORY_REACTIVATED,
+                "categoria:" + category.getId());
         return category;
     }
 
@@ -120,6 +124,14 @@ public class CategoryService {
         }
         category.reactivate();
         return category;
+    }
+
+    private void auditSafely(UUID userId, String eventType, String resource) {
+        try {
+            auditService.register(userId, eventType, resource, null);
+        } catch (RuntimeException exception) {
+            log.warn("Could not persist audit event {}", eventType, exception);
+        }
     }
 
     // The unique index also protects against two requests creating the same name at once.

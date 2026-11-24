@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -32,7 +33,7 @@ public class AuditService {
         this.eventPublisher = eventPublisher;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registerTutorQuery(UUID userId, TutorQueryResult result) {
         if (result == null) {
             throw new IllegalArgumentException("The result is required for a tutor query");
@@ -40,12 +41,12 @@ public class AuditService {
         save(userId, AuditEvent.TUTOR_QUERY, result.name(), null, null);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void register(UUID userId, String eventType) {
         register(userId, eventType, null, null);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void register(
             UUID userId,
             String eventType,
@@ -67,13 +68,8 @@ public class AuditService {
         }
 
         HttpServletRequest request = currentRequest();
-        String correlationId = request != null
-                ? request.getHeader("X-Correlation-ID")
-                : null;
-
-        if (correlationId == null || correlationId.isBlank()) {
-            correlationId = MDC.get("correlationId");
-        }
+        // Use the normalized correlation ID established by the request filter.
+        String correlationId = MDC.get("correlationId");
 
         AuditEvent event = new AuditEvent(userId, eventType, correlationId, result);
         auditEventRepository.save(event);
