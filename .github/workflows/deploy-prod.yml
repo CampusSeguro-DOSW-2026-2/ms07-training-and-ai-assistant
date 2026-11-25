@@ -1,0 +1,39 @@
+name: Deploy to production
+
+# CD a producción: manual, solo desde main y con la aprobación que exige el Environment ms07-prod.
+# Promueve la misma imagen que ya pasó por test (sha-xxxxxxx), sin reconstruirla. Otro tag anterior = rollback.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Imagen a promover (sha-xxxxxxx), la misma que ya se probó en test
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Check branch and tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only from main and with a sha-xxxxxxx tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::Producción solo se despliega desde main (recibido: $GITHUB_REF)"; exit 1; }
+          [[ "$TAG" =~ ^sha-[0-9a-f]{7}$ ]] || { echo "::error::El tag debe tener la forma sha-xxxxxxx (recibido: $TAG)"; exit 1; }
+
+  desplegar:
+    name: Deploy to production
+    needs: verificar
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      entorno: prod
+      ref: ${{ github.sha }}
+      tag: ${{ inputs.tag }}
+    secrets: inherit

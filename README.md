@@ -181,3 +181,70 @@ curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
 Cada consulta respondida o fuera de alcance queda en `audit_event` con el usuario, la fecha y hora y el resultado (`RESPONDIDA` o `FUERA_DE_ALCANCE`). No se guarda el texto de la pregunta ni de la respuesta (RF-15, regla 5). Si ese registro falla, el usuario recibe igual la respuesta y el error queda solo en el log.
 
 La búsqueda de contenidos tolera cómo escribe la gente: cuenta los sinónimos como la misma palabra («terremoto», «temblor» o «tiembla» son «sismo»; «aula» o «clase» son «salón») y lee una palabra que no está en los contenidos como la más parecida, con un error de tipeo en palabras de 5 a 7 letras y hasta dos en las más largas («sizmo» es «sismo», «laboratrio» es «laboratorio»). Las palabras que aparecen en pocos contenidos pesan más que las que aparecen en casi todos. Los sinónimos están en `TutorTerms`.
+
+## Despliegue en la nube (AWS)
+
+MS07 corre en una instancia EC2 de AWS Academy, detrás del API Gateway, siguiendo la [conexión al API Gateway](https://github.com/CampusSeguro-DOSW-2026-2/documentation/blob/main/integration/gateway-connection.md) y el laboratorio [CI/CD multinube](https://github.com/DOSW-2026-2/CI-CD-MULTICLOUD). En la VM hay dos stacks, `ms07-test` y `ms07-prod`, cada uno con su PostgreSQL, y un Caddy de borde que solo acepta al GW por mTLS. Flyway crea el esquema al arrancar.
+
+| Tramo | Cómo |
+|---|---|
+| Cliente → GW | HTTPS + JWT. El GW pasa a MS07 `X-User-Id`, `X-User-Role` y `X-User-Permission` |
+| GW → MS07 | HTTPS con mTLS a la Elastic IP de la VM: `:8443` prueba, `:443` producción |
+| MS07 → MS08 (auditoría) | Por el GW (`GATEWAY_URL`), con `X-Service-Key` |
+
+### Pipelines
+
+| Workflow | Cuándo | Qué hace |
+|---|---|---|
+| `ci.yml` | Push y PR | Compila y prueba (`mvn verify`, reporte JaCoCo). Construye la imagen; desde `develop` y `main` la publica en GHCR como `sha-xxxxxxx`. Cada push a `develop` despliega en prueba |
+| `deploy.yml` | Lo llaman los otros dos | En el runner `ms07` de la VM ejecuta `infra/deploy.sh`: escribe el `.env`, descarga la imagen y verifica |
+| `deploy-prod.yml` | Manual desde `main` | Promueve a producción un tag `sha-xxxxxxx` que ya funcionó en prueba. Un tag anterior es el rollback |
+
+`infra/deploy.sh` verifica dentro de la VM, por la red `campus-edge`, que el health responde 200, que una ruta protegida sin encabezados responde 401 y que el borde rechaza conexiones sin el certificado del GW.
+
+### Variables y secretos (GitHub › Settings › Environments)
+
+`ms07-test` (rama `develop`) y `ms07-prod` (rama `main`, con revisor requerido):
+
+| Nombre | Tipo | Valor |
+|---|---|---|
+| `GATEWAY_URL` | Variable | Prueba: `https://campusseguro-gw.northcentralus.cloudapp.azure.com:8443`. Producción: `https://campusseguro-gw.northcentralus.cloudapp.azure.com` |
+| `GATEWAY_SERVICE_KEY` | Secreto | La clave de servicio de ese entorno que entrega el equipo del GW |
+| `DB_PASSWORD` | Secreto | `openssl rand -base64 24`, distinta por entorno |
+| `LLM_API_KEY` | Secreto | Clave del proveedor del modelo |
+| `LLM_PROVIDER`, `LLM_URL`, `LLM_MODEL`, `LLM_TIMEOUT`, `LLM_MAX_TOKENS`, `LLM_TEMPERATURE` | Variables opcionales | Sin valor usan los de `infra/docker-compose.prod.yml` (`openai`, `gpt-4o-mini`, `8000ms`, 250, 0.2) |
+| `DEPLOY_DIR`, `MS07_EXTRA_ENV` | Variables opcionales | Carpeta del despliegue en la VM (por defecto `~/campusseguro/ms07`) y líneas `CLAVE=valor` extra |
+
+Los certificados, los `.env` y las claves nunca van al repositorio.
+
+### Preparar la VM (una vez)
+
+1. EC2 Ubuntu Server 24.04 x64, `t3.medium`, 30 GiB, con una Elastic IP asociada. Security Group: `22/tcp` solo desde su IP; `443/tcp` y `8443/tcp` solo desde `135.232.229.138/32` (el GW). Nada más.
+2. Docker: `curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker "$USER"`, y volver a entrar por SSH.
+3. Borde Caddy con los certificados del GW en `~/campusseguro/edge/certs/{test,prod}/`:
+
+   ```bash
+   mkdir -p ~/campusseguro/edge && cd ~/campusseguro/edge
+   curl -fsSLO https://raw.githubusercontent.com/CampusSeguro-DOSW-2026-2/api-gateway/develop/infra/caddy/Caddyfile.microservicio
+   curl -fsSLO https://raw.githubusercontent.com/CampusSeguro-DOSW-2026-2/api-gateway/develop/infra/caddy/docker-compose.microservicio.yml
+   printf 'UPSTREAM_PROD=ms07-prod:8087\nUPSTREAM_TEST=ms07-test:8087\n' > .env
+   chmod 600 certs/*/servidor.key
+   docker compose -f docker-compose.microservicio.yml up -d
+   ```
+
+4. Runner: *Settings › Actions › Runners › New self-hosted runner* (Linux x64), con la etiqueta `ms07`, instalado como servicio (`sudo ./svc.sh install && sudo ./svc.sh start`).
+
+### Operación en la VM
+
+```bash
+cd ~/campusseguro/ms07/test                       # o prod
+docker compose ps
+docker compose logs --tail=100 ms07
+grep '^TAG=' .env                                 # versión desplegada, sin mostrar secretos
+docker compose restart ms07                       # reinicia MS07 sin tocar la BD
+docker run --rm --network campus-edge curlimages/curl:8.11.1 -s http://ms07-test:8087/actuator/health
+```
+
+Nunca use `docker compose down -v`: borra el volumen de la BD. Revertir la imagen no revierte las migraciones de Flyway.
+
+AWS Academy detiene la instancia cuando termina la sesión del Learner Lab. Al volver a iniciarla, Docker levanta los contenedores (`restart: unless-stopped`) y el runner vuelve a conectarse. La Elastic IP no cambia, pero se cobra aunque la instancia esté detenida: al eliminar la VM, primero *Disassociate* y luego *Release*.

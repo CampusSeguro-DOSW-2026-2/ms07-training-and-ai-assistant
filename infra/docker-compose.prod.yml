@@ -1,0 +1,67 @@
+# Stack de MS07 en la nube: uno por entorno en la misma VM (ms07-prod y ms07-test), cada uno con su BD.
+# No publica puertos: solo el Caddy de borde de la VM (red campus-edge) llega a MS07, con el alias ms07-<entorno>,
+# y la BD solo es visible dentro del stack. Flyway crea el esquema al arrancar MS07.
+# Lo usa infra/deploy.sh con el .env que escribe en DEPLOY_DIR/<entorno>; no se ejecuta a mano.
+name: ms07-${ENTORNO:?ENTORNO es obligatoria (test o prod)}
+
+services:
+  db:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: training
+      POSTGRES_USER: training_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD es obligatoria}
+    volumes:
+      - datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U training_user -d training"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - interna
+
+  ms07:
+    image: ${IMAGE:?IMAGE es obligatoria}:${TAG:?TAG es obligatoria (sha-xxxxxxx)}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8087"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: training
+      DB_USER: training_user
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD es obligatoria}
+      FLYWAY_OUT_OF_ORDER: "false"
+      SWAGGER_ENABLED: "false"
+      GATEWAY_URL: ${GATEWAY_URL:?GATEWAY_URL es obligatoria (https://<dominio del GW> o :8443)}
+      GATEWAY_SERVICE_KEY: ${GATEWAY_SERVICE_KEY:?GATEWAY_SERVICE_KEY es obligatoria}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_URL: ${LLM_URL:-https://api.openai.com/v1/chat/completions}
+      LLM_API_KEY: ${LLM_API_KEY:?LLM_API_KEY es obligatoria}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      # Por debajo del tiempo del GW para /api/v1/tutor/** (10 s), para responder siempre antes que el GW.
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-8000ms}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-250}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+    # Variables opcionales del entorno, si las hay (MS07_EXTRA_ENV en GitHub).
+    env_file:
+      - path: extra.env
+        required: false
+    networks:
+      interna:
+      edge:
+        aliases:
+          - ms07-${ENTORNO}
+
+volumes:
+  datos:
+
+networks:
+  interna:
+  edge:
+    name: campus-edge
+    external: true
