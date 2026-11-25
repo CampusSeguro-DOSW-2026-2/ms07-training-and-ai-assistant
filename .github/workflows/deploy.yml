@@ -1,0 +1,56 @@
+name: Deploy
+
+# Workflow reutilizable: despliega una imagen ya publicada en la VM de MS07 (EC2), con el runner self-hosted de
+# etiqueta "ms07" y las variables y secretos del Environment ms07-<entorno>. Lo llaman ci.yml (test) y deploy-prod.yml.
+on:
+  workflow_call:
+    inputs:
+      entorno:
+        description: test o prod
+        type: string
+        required: true
+      ref:
+        description: Commit del que se toman los archivos de infra/
+        type: string
+        required: true
+      tag:
+        description: Imagen a desplegar (sha-xxxxxxx). Vacía = la del commit de ref.
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  desplegar:
+    runs-on: [self-hosted, ms07]
+    environment: ms07-${{ inputs.entorno }}
+    timeout-minutes: 15
+    concurrency:
+      group: desplegar-ms07-${{ inputs.entorno }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Deploy and verify
+        run: bash infra/deploy.sh
+        env:
+          ENTORNO: ${{ inputs.entorno }}
+          TAG: ${{ inputs.tag }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_DIR: ${{ vars.DEPLOY_DIR }}
+          GATEWAY_URL: ${{ vars.GATEWAY_URL }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          LLM_URL: ${{ vars.LLM_URL }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          LLM_TIMEOUT: ${{ vars.LLM_TIMEOUT }}
+          LLM_MAX_TOKENS: ${{ vars.LLM_MAX_TOKENS }}
+          LLM_TEMPERATURE: ${{ vars.LLM_TEMPERATURE }}
+          MS07_EXTRA_ENV: ${{ vars.MS07_EXTRA_ENV }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GATEWAY_SERVICE_KEY: ${{ secrets.GATEWAY_SERVICE_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
