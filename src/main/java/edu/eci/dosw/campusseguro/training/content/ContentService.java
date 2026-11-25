@@ -8,6 +8,8 @@ import edu.eci.dosw.campusseguro.training.common.Status;
 import edu.eci.dosw.campusseguro.training.exception.BusinessRuleException;
 import edu.eci.dosw.campusseguro.training.exception.ConflictException;
 import edu.eci.dosw.campusseguro.training.exception.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import java.util.UUID;
 @Service
 @Transactional(readOnly = true)
 public class ContentService {
+
+    private static final Logger log = LoggerFactory.getLogger(ContentService.class);
 
     private static final String NOT_FOUND = "El contenido no existe.";
 
@@ -134,8 +138,12 @@ public class ContentService {
     }
 
     private void auditContent(UUID userId, String eventType, Content content) {
-        auditService.register(userId, eventType,
-                "contenido:" + content.getId(),
-                java.util.Map.of("categoria_id", content.getCategory().getId().toString()));
+        try {
+            auditService.register(userId, eventType,
+                    "contenido:" + content.getId(),
+                    java.util.Map.of("categoria_id", content.getCategory().getId().toString()));
+        } catch (RuntimeException exception) {
+            log.warn("Could not persist audit event {}", eventType, exception);
+        }
     }
 }

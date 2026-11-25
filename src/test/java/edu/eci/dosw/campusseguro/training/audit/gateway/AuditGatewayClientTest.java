@@ -46,45 +46,62 @@ class AuditGatewayClientTest {
     void sendsAuditPayloadWithExpectedHeadersAndJson() {
         UUID userId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        UUID correlationId = UUID.randomUUID();
+
+        String role = "BRIGADISTA";
+        String permission = "ms07:content:manage";
 
         AuditGatewayPayload payload = new AuditGatewayPayload(
                 UUID.randomUUID(),
                 userId,
                 "MS07",
-                "CONTENT_CREATED",
-                "CONTENT:123",
+                "CONTENIDO_CREADO",
+                "contenido:" + contentId,
                 "EXITO",
                 Instant.parse("2026-11-18T14:32:10Z"),
-                "correlation-test-123",
+                correlationId.toString(),
                 null,
                 eventId,
-                "REAL",
-                Map.of("source", "test")
+                null,
+                Map.of("categoria_id", categoryId.toString()),
+                role,
+                permission
         );
 
         server.expect(requestTo(GATEWAY_URL))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("X-Service-Key", SERVICE_KEY))
-                .andExpect(header("X-Correlation-ID", "correlation-test-123"))
+                .andExpect(header("X-Correlation-ID", correlationId.toString()))
                 .andExpect(header("X-User-Id", userId.toString()))
+                .andExpect(header("X-User-Role", role))
+                .andExpect(header("X-User-Permission", permission))
                 .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
                 .andExpect(content().json("""
                         {
                           "id": "%s",
                           "usuario_id": "%s",
                           "modulo": "MS07",
-                          "accion": "CONTENT_CREATED",
-                          "recurso_afectado": "CONTENT:123",
+                          "accion": "CONTENIDO_CREADO",
+                          "recurso_afectado": "contenido:%s",
                           "resultado": "EXITO",
                           "fecha_hora": "2026-11-18T14:32:10Z",
-                          "correlation_id": "correlation-test-123",
+                          "correlation_id": "%s",
                           "evento_id": "%s",
-                          "tipo_evento": "REAL",
+                          "tipo_evento": null,
                           "atributos": {
-                            "source": "test"
+                            "categoria_id": "%s"
                           }
                         }
-                        """.formatted(payload.id(), userId, eventId)))
+                        """.formatted(
+                        payload.id(),
+                        userId,
+                        contentId,
+                        correlationId,
+                        eventId,
+                        categoryId
+                )))
                 .andRespond(withStatus(HttpStatus.ACCEPTED));
 
         client.send(payload);

@@ -133,8 +133,16 @@ class ChatCompletionsAdapterTest {
         OpenAiAdapter adapter = new OpenAiAdapter(properties("openai", KEY, Duration.ofMillis(300)));
 
         long start = System.nanoTime();
-        assertThatThrownBy(() -> adapter.complete(PROMPT)).isInstanceOf(DependencyUnavailableException.class);
-        assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofMillis(1400));
+
+        assertThatThrownBy(() -> adapter.complete(PROMPT))
+                .isInstanceOf(DependencyUnavailableException.class)
+                .hasMessage(ChatCompletionsAdapter.UNAVAILABLE)
+                .hasNoCause();
+
+        assertThat(Duration.ofNanos(System.nanoTime() - start))
+                .isLessThan(Duration.ofMillis(1400));
+
+        assertThat(calls.get()).isEqualTo(1);
     }
 
     @Test
