@@ -24,7 +24,25 @@ final class TutorTerms {
             entry("heridos", "lesion"), entry("herida", "lesion"), entry("heridas", "lesion"),
             entry("lastimado", "lesion"), entry("lastimada", "lesion"), entry("lesionado", "lesion"),
             entry("lesionada", "lesion"), entry("lesiones", "lesion"), entry("auditorios", "auditorio"),
-            entry("oficinas", "oficina"));
+            entry("oficinas", "oficina"),
+            // Every campus emergency, not only earthquakes: the words people use -> the words of the contents
+            entry("fuego", "incendio"), entry("llamas", "incendio"), entry("humo", "incendio"),
+            entry("incendios", "incendio"), entry("quema", "incendio"), entry("quemando", "incendio"),
+            entry("escape", "fuga"), entry("escapes", "fuga"), entry("fugas", "fuga"),
+            entry("riega", "derrame"), entry("rego", "derrame"), entry("regado", "derrame"),
+            entry("regada", "derrame"), entry("derrama", "derrame"), entry("derramo", "derrame"),
+            entry("derrames", "derrame"), entry("derramado", "derrame"), entry("derramada", "derrame"),
+            entry("quimico", "sustancia"), entry("quimicos", "sustancia"), entry("quimica", "sustancia"),
+            entry("quimicas", "sustancia"), entry("reactivo", "sustancia"), entry("reactivos", "sustancia"),
+            entry("sustancias", "sustancia"), entry("acido", "sustancia"), entry("acidos", "sustancia"),
+            entry("inundaciones", "inundacion"), entry("inundado", "inundacion"), entry("inundada", "inundacion"),
+            entry("aguas", "agua"),
+            entry("desmayo", "lesion"), entry("desmayos", "lesion"), entry("desmayado", "lesion"),
+            entry("desmayada", "lesion"), entry("sangre", "lesion"), entry("sangrado", "lesion"),
+            entry("sangrando", "lesion"), entry("golpeado", "lesion"), entry("golpeada", "lesion"),
+            entry("quemadura", "lesion"), entry("quemaduras", "lesion"),
+            entry("extintores", "extintor"), entry("alarmas", "alarma"), entry("sirena", "alarma"),
+            entry("sirenas", "alarma"), entry("simulacros", "simulacro"));
 
     private TutorTerms() {
     }
