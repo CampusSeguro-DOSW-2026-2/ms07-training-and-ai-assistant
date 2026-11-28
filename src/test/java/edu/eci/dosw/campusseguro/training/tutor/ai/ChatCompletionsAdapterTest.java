@@ -110,6 +110,15 @@ class ChatCompletionsAdapterTest {
     }
 
     @Test
+    void aBatchOfContentsGetsMoreTimeThanOneQuestion() {
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai"), embedding());
+
+        assertThat(adapter.timeoutFor(1)).isEqualTo(Duration.ofSeconds(2));
+        assertThat(adapter.timeoutFor(20)).isEqualTo(Duration.ofSeconds(12));
+        assertThat(adapter.timeoutFor(500)).isEqualTo(Duration.ofSeconds(20));
+    }
+
+    @Test
     void azureEmbeddingsTakeTheModelFromTheDeployment() {
         reply = VECTORS;
 
