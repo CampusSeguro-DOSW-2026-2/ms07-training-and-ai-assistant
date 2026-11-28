@@ -153,7 +153,7 @@ Si falta la clave, el proveedor responde con error o se supera el tiempo, MS07 r
 
 ### Preguntar al tutor
 
-`POST /api/v1/tutor/questions` (permiso `ms07:tutor:use`). El tutor busca los contenidos activos relacionados con la pregunta y responde solo con ellos. Si no encuentra ninguno, o el modelo indica que no alcanzan, responde con `sufficient: false` y remite al protocolo oficial de emergencias de la ECI sin generar texto.
+`POST /api/v1/tutor/questions` (permiso `ms07:tutor:use`). El tutor responde sobre prevención y actuación ante cualquier emergencia o evento del campus que esté en los contenidos, no solo sismos: incendios, fugas o derrames de sustancias, evacuación, personas lesionadas y primeros auxilios básicos, puntos de encuentro, simulacros y prevención en salones, laboratorios, auditorios y oficinas. Busca los contenidos activos relacionados con la pregunta y responde solo con ellos. Si no encuentra ninguno, o el modelo indica que no alcanzan, responde con `sufficient: false` y remite al protocolo oficial de emergencias de la ECI sin generar texto.
 
 ```bash
 curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
@@ -181,7 +181,9 @@ curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
 
 Cada consulta respondida o fuera de alcance queda en `audit_event` con el usuario, la fecha y hora y el resultado (`RESPONDIDA` o `FUERA_DE_ALCANCE`). No se guarda el texto de la pregunta ni de la respuesta (RF-15, regla 5). Si ese registro falla, el usuario recibe igual la respuesta y el error queda solo en el log.
 
-La búsqueda de contenidos tolera cómo escribe la gente: cuenta los sinónimos como la misma palabra («terremoto», «temblor» o «tiembla» son «sismo»; «aula» o «clase» son «salón») y lee una palabra que no está en los contenidos como la más parecida, con un error de tipeo en palabras de 5 a 7 letras y hasta dos en las más largas («sizmo» es «sismo», «laboratrio» es «laboratorio»). Las palabras que aparecen en pocos contenidos pesan más que las que aparecen en casi todos. Los sinónimos están en `TutorTerms`.
+La búsqueda de contenidos tolera cómo escribe la gente: cuenta los sinónimos como la misma palabra («terremoto», «temblor» o «tiembla» son «sismo»; «fuego», «llamas» o «humo» son «incendio»; «escape» es «fuga» y «se riega» o «se regó» es «derrame»; «químico» o «reactivo» es «sustancia»; «herido», «desmayo» o «sangre» es «lesión»; «sirena» es «alarma»; «aula» o «clase» son «salón») y lee una palabra que no está en los contenidos como la más parecida, con un error de tipeo en palabras de 5 a 7 letras y hasta dos en las más largas («sizmo» es «sismo», «laboratrio» es «laboratorio»). Las palabras que aparecen en pocos contenidos pesan más que las que aparecen en casi todos. Los sinónimos están en `TutorTerms`.
+
+Con los contenidos iniciales, «¿Qué hago si se riega un químico en el lab?» encuentra «Qué hacer ante un derrame o una fuga de sustancias», «hay humo en el pasillo» encuentra «Mantén libres las salidas y los pasillos del salón» (y el contenido de incendios, si se crea uno) y «una compañera se desmayó» encuentra «Primeras acciones después de un sismo». Una pregunta fuera de tema, como «receta de pasta», sigue sin encontrar nada y no llama al modelo.
 
 ### Seguridad del tutor
 
