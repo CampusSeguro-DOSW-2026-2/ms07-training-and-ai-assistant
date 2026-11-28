@@ -26,7 +26,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // How the tutor search behaves with real questions: badly written, with synonyms or out of scope.
-// Contents: the seed of V4__seed_contents.sql plus a few of the topics that seed does not cover yet.
+// Contents: the seeds of V4__seed_contents.sql and V11__seed_more_contents.sql, with their real texts.
 // Embeddings come from a fake, deterministic model (a hashed bag of the roots of the text), so the result is
 // always the same and no provider is called.
 @SpringBootTest
@@ -51,8 +51,20 @@ class TutorSearchQualityTest {
     static final String ELEVATOR = "Si quedas atrapado en un ascensor";
     static final String POWER = "Qué hacer ante un corte de energía";
     static final String THREAT = "Objeto sospechoso o amenaza en el campus";
-    static final String FIRST_AID = "Primeros auxilios mientras llega la brigada";
+    static final String FIRST_AID = "Primeros auxilios mientras llega la brigada: desmayo y heridas";
     static final String FLOOD = "Inundación o filtración de agua";
+    static final String AFTER_FIRE = "Después de un incendio";
+    static final String FIRE_CLASSROOM = "Fuego o humo cerca de tu salón";
+    static final String OFFICE_FIRE = "Prevención de incendios en la oficina";
+    static final String PREVENT_FIRE = "Prevenir incendios y usar un extintor";
+    static final String LAB_GAS = "Olor a gas en el laboratorio: actúa sin chispas";
+    static final String GAS = "Fuga de gas: señales y qué no hacer";
+    static final String MOBILITY = "Evacuar con personas con movilidad reducida";
+    static final String DRILLS = "Para qué sirven los simulacros y cómo participar";
+    static final String BURNS = "Quemaduras leves y lesionados graves: qué hacer y qué no";
+    // A question about a fire in general can be answered with any of these
+    static final String ANY_FIRE = FIRE + ";" + AFTER_FIRE + ";" + FIRE_CLASSROOM + ";" + OFFICE_FIRE + ";"
+            + PREVENT_FIRE;
 
     // A model that only knows the roots of the words: two texts are close when they share roots.
     static class HashingEmbeddings implements AiAdapter {
@@ -118,29 +130,11 @@ class TutorSearchQualityTest {
     @BeforeEach
     void setUp() {
         Category category = categories.save(new Category("Test Búsqueda", null));
-        SeedContents.read("V4__seed_contents.sql")
-                .forEach(seed -> contents.save(new Content(seed.title(), seed.body(), category)));
-        extraContents().forEach(text -> contents.save(new Content(text[0], text[1], category)));
+        for (String migration : List.of("V4__seed_contents.sql", "V11__seed_more_contents.sql")) {
+            SeedContents.read(migration).forEach(seed -> contents.save(new Content(seed.title(), seed.body(), category)));
+        }
         contents.flush();
         embeddings.refreshAll();
-    }
-
-    // Topics the first seed does not have, written like the real contents.
-    static List<String[]> extraContents() {
-        return List.of(
-                new String[]{FIRE, "Si ves fuego o humo, activa la alarma y avisa a los brigadistas. Si hay humo, "
-                        + "sal agachado, cerca del piso. No uses el ascensor y no te devuelvas por tus cosas."},
-                new String[]{ELEVATOR, "Si el ascensor se detiene, mantén la calma, presiona el botón de alarma y "
-                        + "espera la ayuda. No intentes abrir las puertas ni salir por el techo."},
-                new String[]{POWER, "Si se va la luz, quédate en tu lugar, usa la linterna del celular y espera "
-                        + "indicaciones. Desconecta los equipos para protegerlos cuando vuelva la energía."},
-                new String[]{THREAT, "No toques ni muevas un paquete u objeto sospechoso. Aléjate, avisa al personal "
-                        + "de seguridad y a los brigadistas, y sigue sus instrucciones."},
-                new String[]{FIRST_AID, "Si alguien se desmaya, acuéstalo de lado y avisa a la brigada. Si sangra, "
-                        + "presiona la herida con una tela limpia. Enfría una quemadura leve con agua. No muevas a una "
-                        + "persona con una lesión grave o una fractura."},
-                new String[]{FLOOD, "Si ves una filtración o se inunda un espacio, aléjate de los tomacorrientes y "
-                        + "equipos eléctricos y avisa al personal de mantenimiento y a los brigadistas."});
     }
 
     private List<String> titles(String question) {
@@ -151,21 +145,22 @@ class TutorSearchQualityTest {
 
     @ParameterizedTest(name = "{0} -> {1}")
     @CsvSource(delimiter = '|', value = {
-            "hay fugs de gas en el lab | " + SPILL,
-            "hay una fuja de gas en el laboratorio | " + SPILL,
-            "olor a gas en la oficina | " + SPILL,
+            "hay fugs de gas en el lab | " + SPILL + ";" + LAB_GAS,
+            "hay una fuja de gas en el laboratorio | " + SPILL + ";" + LAB_GAS,
+            "olor a gas en la oficina | " + GAS + ";" + SPILL,
             "se regó un ácido en el laboratorio | " + SPILL,
             "derrame quimico | " + SPILL,
             "se salió un solvente | " + SPILL,
             "duchas de emergencia en el lab | " + LAB,
             "dónde está el extintor del laboratorio | " + LAB,
-            "se prendió fuego la cafetería | " + FIRE,
-            "hay humo en el pasillo | " + FIRE,
-            "incendo en el auditorio | " + FIRE,
-            "conato de incendio en la oficina | " + FIRE,
+            "se prendió fuego la cafetería | " + ANY_FIRE,
+            "hay humo en el pasillo | " + FIRE + ";" + FIRE_CLASSROOM,
+            "incendo en el auditorio | " + ANY_FIRE,
+            "conato de incendio en la oficina | " + OFFICE_FIRE,
             "un compañero se desmayó | " + FIRST_AID,
             "mi compañero está sangrando | " + FIRST_AID,
-            "un estudiante tiene una fractura | " + FIRST_AID,
+            "un estudiante tiene una fractura | " + BURNS,
+            "me quemé la mano con agua caliente | " + BURNS,
             "alguien quedó inconsciente | " + FIRST_AID,
             "me quedé atrapado en el elevador | " + ELEVATOR,
             "se fue la luz en el salón | " + POWER,
@@ -176,7 +171,9 @@ class TutorSearchQualityTest {
             "hay una filtracion de agua | " + FLOOD,
             "qué hago si hay un sizmo | " + INDOORS,
             "lamparas que caen en un temblor | " + INDOORS,
-            "terremoto en clase | " + CLASSROOM,
+            "terremoto en clase | " + CLASSROOM + ";" + INDOORS,
+            "cómo ayudo a alguien en silla de ruedas a evacuar | " + MOBILITY,
+            "para qué sirve un simulacro | " + DRILLS,
             "salidas bloqueadas en el aula | " + CLASSROOM_EXITS,
             "como evaquar el edificio | " + EVACUATE,
             "debo desalojar con orden | " + EVACUATE,
@@ -190,7 +187,8 @@ class TutorSearchQualityTest {
             "archivadores de la oficina | " + OFFICE,
     })
     void findsTheExpectedContent(String question, String expected) {
-        assertThat(titles(question)).contains(expected);
+        // Several titles separated by ";" are alternatives: any of them is a good answer
+        assertThat(titles(question)).containsAnyElementsOf(List.of(expected.split(";")));
     }
 
     @ParameterizedTest

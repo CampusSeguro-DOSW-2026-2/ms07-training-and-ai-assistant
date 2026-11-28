@@ -183,6 +183,18 @@ curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
 
 Cada consulta respondida o fuera de alcance queda en `audit_event` con el usuario, la fecha y hora y el resultado (`RESPONDIDA` o `FUERA_DE_ALCANCE`). No se guarda el texto de la pregunta ni de la respuesta (RF-15, regla 5). Si ese registro falla, el usuario recibe igual la respuesta y el error queda solo en el log.
 
+### Contenidos y evaluaciones iniciales
+
+Flyway carga contenidos preventivos de ejemplo, con ids fijos e iguales en todos los entornos. Ninguna migración vuelve a insertar algo que ya exista (`ON CONFLICT (id) DO NOTHING`).
+
+| Migración | Qué carga |
+|---|---|
+| `V4__seed_contents.sql` | 16 contenidos, dos por categoría (sismos, evacuación y prevención por lugar) |
+| `V11__seed_more_contents.sql` | 16 contenidos más: incendios, extintores, simulacros, fuga de gas, ascensor, corte de energía, inundación, objeto sospechoso, primeros auxilios, quemaduras, movilidad reducida y uno más por lugar |
+| `V12__seed_evaluations.sql` | Una evaluación de ejemplo por categoría (3 preguntas, tres opciones y una correcta), para que cada etapa de la ruta tenga «Pon a prueba lo aprendido» |
+
+Los textos solo tienen recomendaciones generales y ampliamente aceptadas, como las de la Cruz Roja Colombiana o la UNGRD, y siempre remiten a los brigadistas y al protocolo oficial de la ECI. No inventan datos de la universidad: ni números internos, ni nombres, ni ubicaciones. El único teléfono es la línea de emergencias 123. **Deben ser validados por el equipo y la brigada de la universidad antes de presentarlos como oficiales.**
+
 ### Cómo busca el tutor
 
 Antes de llamar al modelo, el tutor busca los contenidos activos que tienen que ver con la pregunta (`ContentRetriever`). Combina dos búsquedas.

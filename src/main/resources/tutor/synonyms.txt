@@ -17,7 +17,7 @@ derrame: se rego, rego, se riega, riega, regado, regada, se derramo, derramo, de
 sustancia: quimico, quimicos, quimica, quimicas, reactivo, reactivos, acido, acidos, solvente, solventes, producto quimico
 
 # Lesiones y primeros auxilios
-lesion: herido, herida, heridos, heridas, lesionado, lesionada, lastimado, lastimada, sangra, sangre, sangrado, sangrando, desmayo, desmayos, se desmayo, desmayado, desmayada, desmayarse, inconsciente, se desmaya, golpe, golpeado, golpeada, golpes, fractura, fracturas, quebro, quemadura, quemaduras
+lesion: herido, herida, heridos, heridas, lesionado, lesionada, lastimado, lastimada, sangra, sangre, sangrado, sangrando, desmayo, desmayos, se desmayo, desmayado, desmayada, desmayarse, inconsciente, se desmaya, golpe, golpeado, golpeada, golpes, fractura, fracturas, quebro, quemadura, quemaduras, me queme, me quemo, queme, se quemo la mano, ampolla, ampollas
 
 # Evacuacion
 evacuar: salir, desalojar, desalojo, desalojen, abandonar el edificio, salir del edificio, evacuen, evacue
