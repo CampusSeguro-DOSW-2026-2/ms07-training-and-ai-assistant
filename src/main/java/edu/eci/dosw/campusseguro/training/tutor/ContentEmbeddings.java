@@ -34,6 +34,9 @@ import java.util.stream.Collectors;
 public class ContentEmbeddings {
 
     static final int BATCH = 32;
+    // If the provider fails when MS07 starts, it tries again a few times before waiting for the next change.
+    static final int START_ATTEMPTS = 3;
+    static final java.time.Duration START_WAIT = java.time.Duration.ofSeconds(30);
     static final int MAX_TEXT = 6000;
 
     private static final Logger log = LoggerFactory.getLogger(ContentEmbeddings.class);
@@ -80,7 +83,24 @@ public class ContentEmbeddings {
     @EventListener(ApplicationReadyEvent.class)
     public void onStart() {
         if (available()) {
-            executor.execute(this::refreshAll);
+            executor.execute(() -> refreshWithRetries(START_ATTEMPTS, START_WAIT));
+        }
+    }
+
+    // Runs in the embedding executor, never in a request.
+    void refreshWithRetries(int attempts, java.time.Duration wait) {
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            if (refreshAll()) {
+                return;
+            }
+            if (attempt < attempts) {
+                try {
+                    Thread.sleep(wait.toMillis());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
         }
     }
 
@@ -92,17 +112,18 @@ public class ContentEmbeddings {
     }
 
     // Loads the stored vectors and calculates the missing or outdated ones of every active content.
-    public void refreshAll() {
+    // False if the provider failed.
+    public boolean refreshAll() {
         if (!available()) {
-            return;
+            return true;
         }
         List<UUID> active = contents.findByStatus(Status.ACTIVO, Pageable.unpaged()).getContent().stream()
                 .map(Content::getId)
                 .toList();
-        refresh(active);
+        return refresh(active);
     }
 
-    void refresh(List<UUID> contentIds) {
+    boolean refresh(List<UUID> contentIds) {
         AiAdapter adapter = adapters.current();
         String model = adapter.embeddingModel();
         Map<UUID, ContentEmbedding> stored = embeddings.findByModel(model).stream()
@@ -131,12 +152,13 @@ public class ContentEmbeddings {
                 }
             } catch (RuntimeException e) {
                 log.warn("Content embeddings could not be calculated: {}", e.getClass().getSimpleName());
-                return;
+                return false;
             }
         }
         if (!pending.isEmpty()) {
             log.info("Calculated {} content embeddings", pending.size());
         }
+        return true;
     }
 
     static String textOf(Content content) {

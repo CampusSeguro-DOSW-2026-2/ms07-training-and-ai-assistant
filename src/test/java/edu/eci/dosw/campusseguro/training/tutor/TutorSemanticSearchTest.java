@@ -197,6 +197,29 @@ class TutorSemanticSearchTest {
     }
 
     @Test
+    void ifTheProviderFailsAtStartupItTriesAgain() {
+        stored.deleteAll();
+        int[] attempts = {0};
+        ConceptEmbeddings flaky = new ConceptEmbeddings() {
+            @Override
+            public List<float[]> embed(List<String> texts) {
+                attempts[0]++;
+                if (attempts[0] < 2) {
+                    throw new DependencyUnavailableException("timeout");
+                }
+                return super.embed(texts);
+            }
+        };
+        ContentEmbeddings retrying = new ContentEmbeddings(new AiAdapters(List.of(flaky),
+                new TutorProperties("concepts", null, null, null, null, null, null)), contents, stored, Runnable::run);
+
+        retrying.refreshWithRetries(3, java.time.Duration.ZERO);
+
+        assertThat(attempts[0]).isEqualTo(2);
+        assertThat(stored.findById(elevator.getId())).isPresent();
+    }
+
+    @Test
     void theQuestionIsEmbeddedAlreadyRedacted() {
         fake.received.clear();
 
