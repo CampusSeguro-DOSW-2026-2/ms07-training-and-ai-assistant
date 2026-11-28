@@ -190,8 +190,8 @@ Flyway carga contenidos preventivos de ejemplo, con ids fijos e iguales en todos
 | Migración | Qué carga |
 |---|---|
 | `V4__seed_contents.sql` | 16 contenidos, dos por categoría (sismos, evacuación y prevención por lugar) |
-| `V11__seed_more_contents.sql` | 20 contenidos más: incendios, extintores, simulacros, plan personal, fuga de gas, ascensor, corte de energía, inundación, objeto sospechoso, primeros auxilios, quemaduras, movilidad reducida y uno o dos más por lugar |
-| `V12__seed_evaluations.sql` | Una evaluación de ejemplo por categoría (3 o 4 preguntas, tres opciones y una correcta), para que cada etapa de la ruta tenga «Pon a prueba lo aprendido» |
+| `V11__seed_more_contents.sql` | 16 contenidos más: incendios, extintores, simulacros, fuga de gas, ascensor, corte de energía, inundación, objeto sospechoso, primeros auxilios, quemaduras, movilidad reducida y uno más por lugar |
+| `V12__seed_evaluations.sql` | Una evaluación de ejemplo por categoría (3 preguntas, tres opciones y una correcta), para que cada etapa de la ruta tenga «Pon a prueba lo aprendido» |
 
 Los textos solo tienen recomendaciones generales y ampliamente aceptadas, como las de la Cruz Roja Colombiana o la UNGRD, y siempre remiten a los brigadistas y al protocolo oficial de la ECI. No inventan datos de la universidad: ni números internos, ni nombres, ni ubicaciones. El único teléfono es la línea de emergencias 123. **Deben ser validados por el equipo y la brigada de la universidad antes de presentarlos como oficiales.**
 

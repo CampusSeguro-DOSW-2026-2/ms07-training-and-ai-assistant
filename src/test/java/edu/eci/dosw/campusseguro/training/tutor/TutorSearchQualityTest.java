@@ -57,7 +57,6 @@ class TutorSearchQualityTest {
     static final String FIRE_CLASSROOM = "Fuego o humo cerca de tu salón";
     static final String OFFICE_FIRE = "Prevención de incendios en la oficina";
     static final String PREVENT_FIRE = "Prevenir incendios y usar un extintor";
-    static final String LAB_FIRE = "Un incendio pequeño en el laboratorio";
     static final String LAB_GAS = "Olor a gas en el laboratorio: actúa sin chispas";
     static final String GAS = "Fuga de gas: señales y qué no hacer";
     static final String MOBILITY = "Evacuar con personas con movilidad reducida";
@@ -65,7 +64,7 @@ class TutorSearchQualityTest {
     static final String BURNS = "Quemaduras leves y lesionados graves: qué hacer y qué no";
     // A question about a fire in general can be answered with any of these
     static final String ANY_FIRE = FIRE + ";" + AFTER_FIRE + ";" + FIRE_CLASSROOM + ";" + OFFICE_FIRE + ";"
-            + PREVENT_FIRE + ";" + LAB_FIRE;
+            + PREVENT_FIRE;
 
     // A model that only knows the roots of the words: two texts are close when they share roots.
     static class HashingEmbeddings implements AiAdapter {
@@ -158,7 +157,6 @@ class TutorSearchQualityTest {
             "hay humo en el pasillo | " + FIRE + ";" + FIRE_CLASSROOM,
             "incendo en el auditorio | " + ANY_FIRE,
             "conato de incendio en la oficina | " + OFFICE_FIRE,
-            "se prendió un mechero en el laboratorio | " + LAB_FIRE,
             "un compañero se desmayó | " + FIRST_AID,
             "mi compañero está sangrando | " + FIRST_AID,
             "un estudiante tiene una fractura | " + BURNS,
