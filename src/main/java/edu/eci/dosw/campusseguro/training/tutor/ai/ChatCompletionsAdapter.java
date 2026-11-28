@@ -46,6 +46,9 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
     // OpenAI needs the model in the body; Azure takes it from the deployment in the URL.
     protected abstract boolean sendsModel();
 
+    // "store": false asks the provider not to keep the conversation. Only where the provider accepts the field.
+    protected abstract boolean sendsStore();
+
     @Override
     public String complete(AiPrompt prompt) {
         if (properties.apiKey().isEmpty() || properties.url().isEmpty()) {
@@ -68,13 +71,15 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
             throw new DependencyUnavailableException(UNAVAILABLE);
         } catch (RestClientException e) {
             // Timeout, connection or certificate error, or a body that is not the expected JSON.
-            // The root cause says which one and never carries the key.
+            // Only the type of the root cause: its message can quote the answer of the model.
             log.warn("AI provider {} could not be used: {}", provider(),
-                    NestedExceptionUtils.getMostSpecificCause(e).toString());
+                    NestedExceptionUtils.getMostSpecificCause(e).getClass().getSimpleName());
             throw new DependencyUnavailableException(UNAVAILABLE);
         }
     }
 
+    // Only the model, the two messages and the generation settings: never a "user" field, the user id, the
+    // X-User-* headers or the correlation id. Nothing in the request says who asked.
     private Map<String, Object> body(AiPrompt prompt) {
         Map<String, Object> body = new LinkedHashMap<>();
         if (sendsModel() && !properties.model().isEmpty()) {
@@ -85,6 +90,9 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
                 Map.of("role", "user", "content", prompt.message())));
         body.put("temperature", properties.temperature());
         body.put("max_tokens", properties.maxTokens());
+        if (sendsStore()) {
+            body.put("store", false);
+        }
         return body;
     }
 

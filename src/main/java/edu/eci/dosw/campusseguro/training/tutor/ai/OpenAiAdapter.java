@@ -25,4 +25,9 @@ public class OpenAiAdapter extends ChatCompletionsAdapter {
     protected boolean sendsModel() {
         return true;
     }
+
+    @Override
+    protected boolean sendsStore() {
+        return true;
+    }
 }

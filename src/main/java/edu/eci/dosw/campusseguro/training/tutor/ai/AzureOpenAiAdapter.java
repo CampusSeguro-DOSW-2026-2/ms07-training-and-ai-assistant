@@ -27,4 +27,10 @@ public class AzureOpenAiAdapter extends ChatCompletionsAdapter {
     protected boolean sendsModel() {
         return false;
     }
+
+    // Not every Azure api-version accepts "store", and Azure does not keep chat completions unless asked to.
+    @Override
+    protected boolean sendsStore() {
+        return false;
+    }
 }
