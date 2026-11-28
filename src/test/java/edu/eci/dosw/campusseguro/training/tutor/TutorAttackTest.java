@@ -86,6 +86,9 @@ class TutorAttackTest {
             if (lower.contains("sangrando")) {
                 return Moderation.flagged(Set.of("violence"));
             }
+            if (lower.contains("evacuar")) {
+                return Moderation.flagged(Set.of("illicit/violent"));
+            }
             return Moderation.clean();
         }
     }
@@ -338,6 +341,13 @@ class TutorAttackTest {
                 .andExpect(jsonPath("$.notice").doesNotExist());
 
         assertThat(model.prompts).hasSize(1);
+    }
+
+    @Test
+    void evacuatingIsNotBlockedEvenIfTheModerationCallsItIllicit() throws Exception {
+        ask("¿cómo evacuar el edificio en un sismo?")
+                .andExpect(jsonPath("$.sufficient").value(true))
+                .andExpect(jsonPath("$.notice").doesNotExist());
     }
 
     @Test
