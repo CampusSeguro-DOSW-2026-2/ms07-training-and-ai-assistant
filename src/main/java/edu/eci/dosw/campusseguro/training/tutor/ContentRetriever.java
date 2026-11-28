@@ -66,6 +66,12 @@ public class ContentRetriever {
             .map(SpanishStemmer::stem)
             .collect(Collectors.toUnmodifiableSet());
 
+    // Places say where the person is, not what is happening: they never weigh more for being rare, so "olor a gas en
+    // la oficina" finds the gas leak before the contents about offices.
+    private static final Set<String> PLACE_STEMS = Set.of("salon", "laboratorio", "auditorio", "oficina").stream()
+            .map(SpanishStemmer::stem)
+            .collect(Collectors.toUnmodifiableSet());
+
     private static final Logger log = LoggerFactory.getLogger(ContentRetriever.class);
 
     private final TutorContentRepository repository;
@@ -135,6 +141,9 @@ public class ContentRetriever {
         Set<String> specific = new java.util.HashSet<>();
         Set<String> rare = new java.util.HashSet<>();
         for (String stem : wanted) {
+            if (PLACE_STEMS.contains(stem)) {
+                continue;
+            }
             long count = indexed.stream().filter(c -> c.title().contains(stem) || c.body().contains(stem)).count();
             if (count * 8 <= indexed.size()) {
                 rare.add(stem);
