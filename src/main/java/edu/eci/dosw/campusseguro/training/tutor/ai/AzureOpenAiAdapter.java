@@ -14,9 +14,13 @@ public class AzureOpenAiAdapter extends ChatCompletionsAdapter {
         super(properties);
     }
 
-    @Autowired
     public AzureOpenAiAdapter(TutorProperties properties, EmbeddingProperties embedding) {
         super(properties, embedding);
+    }
+
+    @Autowired
+    public AzureOpenAiAdapter(TutorProperties properties, EmbeddingProperties embedding, ModerationProperties moderation) {
+        super(properties, embedding, moderation);
     }
 
     @Override
@@ -35,6 +39,12 @@ public class AzureOpenAiAdapter extends ChatCompletionsAdapter {
     }
 
     // Not every Azure api-version accepts "store", and Azure does not keep chat completions unless asked to.
+    // Azure OpenAI has no moderation endpoint: its own content filters apply to every request of the deployment.
+    @Override
+    public Moderation moderate(String text) {
+        return Moderation.unavailable();
+    }
+
     @Override
     protected boolean sendsStore() {
         return false;

@@ -17,6 +17,8 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 
 // Shared client for the "chat completions" API, used by OpenAI and Azure OpenAI.
@@ -30,6 +32,7 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
 
     private final TutorProperties properties;
     private final EmbeddingProperties embedding;
+    private final ModerationProperties moderation;
     // One client per timeout: LLM_TIMEOUT for the tutor, the longer one of the evaluation drafts and the short one
     // of the embeddings.
     private final Map<Duration, RestClient> clients = new ConcurrentHashMap<>();
@@ -39,9 +42,41 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
     }
 
     protected ChatCompletionsAdapter(TutorProperties properties, EmbeddingProperties embedding) {
+        this(properties, embedding, ModerationProperties.disabled());
+    }
+
+    protected ChatCompletionsAdapter(TutorProperties properties, EmbeddingProperties embedding,
+                                     ModerationProperties moderation) {
         this.properties = properties;
         this.embedding = embedding;
+        this.moderation = moderation;
         client(properties.timeout());
+    }
+
+    // POST /v1/moderations. Any failure (no key, timeout, error) is "unavailable": it never blocks the tutor.
+    @Override
+    public Moderation moderate(String text) {
+        if (!moderation.enabled() || moderation.url().isEmpty() || properties.apiKey().isEmpty()) {
+            return Moderation.unavailable();
+        }
+        try {
+            ModerationResponse response = post(moderation.url(), moderation.timeout(),
+                    Map.of("model", moderation.model(), "input", text), ModerationResponse.class);
+            if (response == null || response.results() == null || response.results().isEmpty()) {
+                return Moderation.unavailable();
+            }
+            ModerationResponse.Result result = response.results().get(0);
+            if (!result.flagged()) {
+                return Moderation.clean();
+            }
+            Set<String> categories = result.categories() == null ? Set.of() : result.categories().entrySet().stream()
+                    .filter(entry -> Boolean.TRUE.equals(entry.getValue()))
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toSet());
+            return Moderation.flagged(categories);
+        } catch (DependencyUnavailableException e) {
+            return Moderation.unavailable();
+        }
     }
 
     @Override
@@ -171,6 +206,15 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
             throw new DependencyUnavailableException(UNAVAILABLE);
         }
         return response.choices().get(0).message().content().trim();
+    }
+
+    // Only the fields read from a moderation answer.
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ModerationResponse(List<Result> results) {
+
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        record Result(boolean flagged, Map<String, Boolean> categories) {
+        }
     }
 
     // Only the fields read from an embeddings answer.

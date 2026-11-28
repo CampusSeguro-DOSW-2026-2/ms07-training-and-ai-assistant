@@ -52,6 +52,7 @@ class ChatCompletionsAdapterTest {
         server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/v1/chat/completions", this::handle);
         server.createContext("/v1/embeddings", this::handle);
+        server.createContext("/v1/moderations", this::handle);
         server.start();
     }
 
@@ -152,6 +153,52 @@ class ChatCompletionsAdapterTest {
                 .isFalse();
         assertThat(new OpenAiAdapter(properties("openai")).supportsEmbeddings()).isFalse();
         assertThat(new EmbeddingProperties(null, null, null).model()).isEqualTo("text-embedding-3-small");
+    }
+
+    private ModerationProperties moderation() {
+        return new ModerationProperties(true, "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/moderations",
+                null, Duration.ofSeconds(2));
+    }
+
+    @Test
+    void moderationReadsTheFlaggedCategories() {
+        reply = """
+                {"id":"modr-1","model":"omni-moderation-latest","results":[{"flagged":true,
+                "categories":{"self-harm":true,"self-harm/intent":true,"violence":false},
+                "category_scores":{"self-harm":0.9}}]}""";
+
+        Moderation result = new OpenAiAdapter(properties("openai"), embedding(), moderation()).moderate("texto");
+
+        assertThat(result.available()).isTrue();
+        assertThat(result.flagged()).isTrue();
+        assertThat(result.categories()).containsExactlyInAnyOrder("self-harm", "self-harm/intent");
+        assertThat(body.get()).contains("\"model\":\"omni-moderation-latest\"").contains("\"input\":\"texto\"");
+    }
+
+    @Test
+    void aCleanTextIsNotFlagged() {
+        reply = "{\"results\":[{\"flagged\":false,\"categories\":{\"violence\":false}}]}";
+
+        assertThat(new OpenAiAdapter(properties("openai"), embedding(), moderation()).moderate("texto"))
+                .isEqualTo(Moderation.clean());
+    }
+
+    @Test
+    void aFailingModerationIsUnavailableAndNeverThrows() {
+        status = 500;
+        reply = "{}";
+
+        assertThat(new OpenAiAdapter(properties("openai"), embedding(), moderation()).moderate("texto").available())
+                .isFalse();
+    }
+
+    @Test
+    void moderationIsOffWithoutConfigurationAndInAzure() {
+        assertThat(new OpenAiAdapter(properties("openai")).moderate("texto").available()).isFalse();
+        assertThat(new AzureOpenAiAdapter(properties("azure"), embedding(), moderation()).moderate("texto").available())
+                .isFalse();
+        assertThat(calls.get()).isZero();
+        assertThat(new ModerationProperties(null, null, null, null).enabled()).isTrue();
     }
 
     private TutorProperties properties(String provider, String key, Duration timeout) {
@@ -318,7 +365,8 @@ class ChatCompletionsAdapterTest {
         TutorProperties azure = properties(" Azure ");
         AiAdapters adapters = new AiAdapters(List.of(new OpenAiAdapter(azure), new AzureOpenAiAdapter(azure)), azure);
 
-        assertThat(adapters.current()).isInstanceOf(AzureOpenAiAdapter.class);
+        assertThat(adapters.chosen()).isInstanceOf(AzureOpenAiAdapter.class);
+        assertThat(adapters.current().provider()).isEqualTo("azure");
     }
 
     @Test

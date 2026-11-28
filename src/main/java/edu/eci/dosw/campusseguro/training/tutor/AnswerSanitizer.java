@@ -13,7 +13,13 @@ public final class AnswerSanitizer {
     private static final Pattern HTML_TAG = Pattern.compile("</?\\p{Alpha}[^<>]{0,300}>|<!--.*?-->", Pattern.DOTALL);
     private static final Pattern MARKDOWN_LINK = Pattern.compile("!?\\[([^\\]\\n]{0,200})]\\([^)\\s]{0,500}\\)");
     private static final Pattern HEADING = Pattern.compile("(?m)^[ \\t]{0,3}#{1,6}[ \\t]*");
-    private static final Pattern LIST_MARK = Pattern.compile("(?m)^[ \\t]*[*+][ \\t]+");
+    private static final Pattern LIST_MARK = Pattern.compile("(?m)^[ \\t]*(?:[*+]|\\d{1,2}[.)])[ \\t]+");
+    private static final Pattern EMAIL = Pattern.compile("[\\p{L}\\p{N}._%+-]+@[\\p{L}\\p{N}-]+(?:\\.[\\p{L}\\p{N}-]+)+");
+    // A figure: "123", "10:30", "1.000", "300 123 4567" (digits with spaces, dots, dashes or slashes between them)
+    private static final Pattern FIGURE = Pattern.compile("(?<![\\p{L}\\d])\\+?\\d+(?:[ .,:/-]?\\d+)*(?![\\p{L}\\d])");
+    private static final Pattern LETTER = Pattern.compile("\\p{L}");
+    // Less letters than this after removing what is not in the contents: the answer says nothing
+    static final int MIN_LETTERS = 20;
     private static final Pattern EMPHASIS = Pattern.compile("\\*{1,3}|_{2,3}|~~|`");
     private static final Pattern URL = Pattern.compile(
             "(?i)\\b(?:https?://|www\\.)[^\\s<>\"«»]*[^\\s<>\"«».,;:!?)]"
@@ -44,6 +50,27 @@ public final class AnswerSanitizer {
         result = BLANK_LINES.matcher(result).replaceAll("\n");
         return result.lines().map(String::strip).filter(line -> !line.isEmpty())
                 .reduce((a, b) -> a + "\n" + b).orElse("");
+    }
+
+    // Anchors the answer to the contents (RF-15): e-mails, phone numbers and other figures that are not in the
+    // contents used are removed, so the model cannot make up a phone line or a number. Returns "" if what is left
+    // has fewer than MIN_LETTERS letters.
+    public static String grounded(String text, Collection<String> sources) {
+        String known = String.join("\n", sources.stream().filter(java.util.Objects::nonNull).toList());
+        String result = EMAIL.matcher(text).replaceAll(match ->
+                known.contains(match.group()) ? Matcher.quoteReplacement(match.group()) : "");
+        result = FIGURE.matcher(result).replaceAll(match ->
+                appears(match.group(), known) ? Matcher.quoteReplacement(match.group()) : "");
+        result = SPACES.matcher(result).replaceAll(" ");
+        result = SPACE_BEFORE_PUNCTUATION.matcher(result).replaceAll("$1");
+        result = result.lines().map(String::strip).filter(line -> !line.isEmpty())
+                .reduce((a, b) -> a + "\n" + b).orElse("");
+        return LETTER.matcher(result).results().count() < MIN_LETTERS ? "" : result;
+    }
+
+    // The figure is in the contents as a whole number, not inside another one: "3" is not in "2023".
+    private static boolean appears(String figure, String known) {
+        return Pattern.compile("(?<!\\d)" + Pattern.quote(figure) + "(?!\\d)").matcher(known).find();
     }
 
     // At most max characters, cut after a whole word and closed with "…".
