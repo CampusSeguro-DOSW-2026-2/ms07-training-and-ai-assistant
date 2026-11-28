@@ -28,4 +28,10 @@ public interface AiAdapter {
     default String embeddingModel() {
         return "";
     }
+
+    // Moderation of a text (a redacted question or an answer of the model). Unavailable when the provider has no
+    // moderation or it fails: the tutor then follows its normal flow.
+    default Moderation moderate(String text) {
+        return Moderation.unavailable();
+    }
 }

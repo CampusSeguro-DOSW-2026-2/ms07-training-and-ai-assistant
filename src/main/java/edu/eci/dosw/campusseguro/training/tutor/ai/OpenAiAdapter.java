@@ -12,9 +12,13 @@ public class OpenAiAdapter extends ChatCompletionsAdapter {
         super(properties);
     }
 
-    @Autowired
     public OpenAiAdapter(TutorProperties properties, EmbeddingProperties embedding) {
         super(properties, embedding);
+    }
+
+    @Autowired
+    public OpenAiAdapter(TutorProperties properties, EmbeddingProperties embedding, ModerationProperties moderation) {
+        super(properties, embedding, moderation);
     }
 
     @Override
