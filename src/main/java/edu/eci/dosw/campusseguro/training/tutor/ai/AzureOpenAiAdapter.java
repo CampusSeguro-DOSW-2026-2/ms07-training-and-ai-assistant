@@ -1,5 +1,6 @@
 package edu.eci.dosw.campusseguro.training.tutor.ai;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +12,11 @@ public class AzureOpenAiAdapter extends ChatCompletionsAdapter {
 
     public AzureOpenAiAdapter(TutorProperties properties) {
         super(properties);
+    }
+
+    @Autowired
+    public AzureOpenAiAdapter(TutorProperties properties, EmbeddingProperties embedding) {
+        super(properties, embedding);
     }
 
     @Override

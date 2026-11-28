@@ -183,7 +183,45 @@ curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
 
 Cada consulta respondida o fuera de alcance queda en `audit_event` con el usuario, la fecha y hora y el resultado (`RESPONDIDA` o `FUERA_DE_ALCANCE`). No se guarda el texto de la pregunta ni de la respuesta (RF-15, regla 5). Si ese registro falla, el usuario recibe igual la respuesta y el error queda solo en el log.
 
-La búsqueda de contenidos tolera cómo escribe la gente: cuenta los sinónimos como la misma palabra («terremoto», «temblor» o «tiembla» son «sismo»; «fuego», «llamas» o «humo» son «incendio»; «escape» es «fuga» y «se riega» o «se regó» es «derrame»; «químico» o «reactivo» es «sustancia»; «herido», «desmayo» o «sangre» es «lesión»; «sirena» es «alarma»; «aula» o «clase» son «salón») y lee una palabra que no está en los contenidos como la más parecida, con un error de tipeo en palabras de 5 a 7 letras y hasta dos en las más largas («sizmo» es «sismo», «laboratrio» es «laboratorio»). Las palabras que aparecen en pocos contenidos pesan más que las que aparecen en casi todos. Los sinónimos están en `TutorTerms`.
+### Cómo busca el tutor
+
+Antes de llamar al modelo, el tutor busca los contenidos activos que tienen que ver con la pregunta (`ContentRetriever`). Combina dos búsquedas.
+
+**1. Por palabras.** La pregunta y los contenidos se comparan sin tildes, sin mayúsculas y sin palabras vacías («qué», «hay», «por favor»…):
+
+- **Raíces en español** (`SpanishStemmer`): quita plurales (`-s`, `-es`, `-ces`→`-z`), diminutivos y terminaciones verbales frecuentes (`-ar`, `-er`, `-ir`, `-ando`, `-iendo`, `-ado`, `-ido`, `-ción`). Así «fuga», «fugas» y «fugó» son la misma palabra, igual que «evacuar», «evacuación» y «evacuando».
+- **Sinónimos por tema** en [`src/main/resources/tutor/synonyms.txt`](src/main/resources/tutor/synonyms.txt): un grupo por línea, legible y fácil de ampliar, que se carga al arrancar. Cubre sismo, incendio, fuga y derrame, sustancias, lesiones, evacuación, punto de encuentro, ascensor, energía, inundación, amenazas, brigadistas, alarmas, extintores y los espacios. Las frases de varias palabras cuentan como una sola: «se fue la luz» es «energía», «olor a gas» es «fuga», «zona segura» es «punto de encuentro».
+- **Errores de tipeo:** una palabra que no está en los contenidos se lee como la más parecida de los contenidos o de los sinónimos:
+  - en palabras de 4 letras se permite 1 error, solo contra palabras que empiezan por la misma letra («fuja» es «fuga»);
+  - de 5 a 7 letras, 1 error («sizmo», «incendo», «evaquar»);
+  - de 8 o más, 2 errores.
+
+  Nunca se corrigen palabras de 3 letras ni palabras vacías.
+- **Peso:** la palabra vale más en el título (3) que en el texto (1), y vale el doble si aparece en pocos contenidos y el triple si aparece en muy pocos. Una sola palabra común en el texto («celular», «parte») no basta: hace falta que esté en el título, que sea una palabra de los temas (las del archivo de sinónimos) o que coincidan al menos dos palabras.
+
+**2. Por significado (híbrida).** Si el proveedor tiene embeddings, cada contenido activo tiene su vector, guardado en `content_embedding` como JSON (sin exigir `pgvector`):
+
+- **Cuándo se calcula:** al arrancar MS07, los que falten o estén desactualizados; y después de crear, editar o reactivar un contenido, en segundo plano y después del commit.
+- **Con cada pregunta:** se calcula el embedding de la pregunta **ya redactada**, sin datos personales, y su similitud coseno con cada contenido.
+- **Puntaje:** la similitud se normaliza entre 0,25 (temas distintos) y 0,60 (mismo tema), y se combina así: `0,6 × significado + 0,4 × palabras`.
+- **Qué contenidos se usan:** los que las palabras ya encontraban, más los que alcanzan `TUTOR_SEARCH_MIN_SCORE` (0,35 por defecto). El significado encuentra más contenidos, pero nunca esconde uno que las palabras encontraron.
+- **Si falla:** si los embeddings fallan, tardan más que `LLM_EMBEDDING_TIMEOUT` o no hay clave, la búsqueda sigue solo con palabras, sin error para el usuario.
+
+Los valores salen de una calibración con `text-embedding-3-small` y los contenidos iniciales. Las preguntas del tema dieron una similitud máxima de 0,37 a 0,70; las de otros temas, de 0,15 a 0,36. Por eso un contenido solo entra por significado desde una similitud de 0,45 aproximadamente.
+
+**Tiempo:** comparar la pregunta con todos los contenidos tarda pocos milisegundos (los vectores están en memoria). Lo que más pesa es el embedding de la pregunta, unos cientos de milisegundos. El log de nivel DEBUG muestra solo números (tiempos y puntaje), nunca la pregunta.
+
+| Variable | Por defecto | Uso |
+|---|---|---|
+| `LLM_EMBEDDING_URL` | `https://api.openai.com/v1/embeddings` | Endpoint de embeddings. En Azure, el del deployment de embeddings. Vacío: solo palabras |
+| `LLM_EMBEDDING_MODEL` | `text-embedding-3-small` | Modelo de embeddings (en Azure lo define el deployment) |
+| `LLM_EMBEDDING_TIMEOUT` | `2000ms` | Tiempo máximo para el embedding de una pregunta |
+| `TUTOR_SEARCH_MIN_SCORE` | `0.35` | Puntaje combinado mínimo para usar un contenido encontrado solo por significado |
+
+Las pruebas usan un modelo de embeddings falso y determinista:
+
+- `TutorSearchQualityTest` tiene 37 preguntas reales mal escritas o con sinónimos, con el contenido que deben encontrar, y 15 preguntas de otros temas que no deben encontrar nada.
+- `TutorSemanticSearchTest` prueba un contenido encontrado solo por significado, el respaldo cuando fallan los embeddings y que el embedding recibe la pregunta ya redactada.
 
 Con los contenidos iniciales, «¿Qué hago si se riega un químico en el lab?» encuentra «Qué hacer ante un derrame o una fuga de sustancias», «hay humo en el pasillo» encuentra «Mantén libres las salidas y los pasillos del salón» (y el contenido de incendios, si se crea uno) y «una compañera se desmayó» encuentra «Primeras acciones después de un sismo». Una pregunta fuera de tema, como «receta de pasta», sigue sin encontrar nada y no llama al modelo.
 

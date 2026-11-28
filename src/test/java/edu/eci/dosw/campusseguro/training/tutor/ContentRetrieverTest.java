@@ -149,6 +149,6 @@ class ContentRetrieverTest {
     @Test
     void stemsJoinWordsOfTheSameFamily() {
         assertThat(ContentRetriever.stems("¿Qué hago en los sismos y la evacuación?"))
-                .containsExactly("sismo", "evacu");
+                .containsExactly("sism", "evacu");
     }
 }

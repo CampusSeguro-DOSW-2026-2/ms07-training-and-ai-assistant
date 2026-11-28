@@ -51,6 +51,7 @@ class ChatCompletionsAdapterTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/v1/chat/completions", this::handle);
+        server.createContext("/v1/embeddings", this::handle);
         server.start();
     }
 
@@ -80,6 +81,77 @@ class ChatCompletionsAdapterTest {
         } finally {
             exchange.close();
         }
+    }
+
+    private EmbeddingProperties embedding() {
+        return new EmbeddingProperties("http://127.0.0.1:" + server.getAddress().getPort() + "/v1/embeddings",
+                "text-embedding-test", Duration.ofSeconds(2));
+    }
+
+    private static final String VECTORS = """
+            {"object":"list","data":[{"object":"embedding","index":1,"embedding":[0.5,0.25]},
+            {"object":"embedding","index":0,"embedding":[0.1,-0.2]}],"model":"text-embedding-test"}""";
+
+    @Test
+    void openAiEmbeddingsSendTheModelAndKeepTheOrderOfTheTexts() {
+        reply = VECTORS;
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai"), embedding());
+
+        List<float[]> vectors = adapter.embed(List.of("hay fuga de gas", "se fue la luz"));
+
+        assertThat(adapter.supportsEmbeddings()).isTrue();
+        assertThat(adapter.embeddingModel()).isEqualTo("text-embedding-test");
+        assertThat(vectors.get(0)).containsExactly(0.1f, -0.2f);
+        assertThat(vectors.get(1)).containsExactly(0.5f, 0.25f);
+        assertThat(authorization.get()).isEqualTo("Bearer " + KEY);
+        assertThat(body.get()).contains("\"model\":\"text-embedding-test\"")
+                .contains("\"input\":[\"hay fuga de gas\",\"se fue la luz\"]")
+                .doesNotContain("\"user\"");
+    }
+
+    @Test
+    void aBatchOfContentsGetsMoreTimeThanOneQuestion() {
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai"), embedding());
+
+        assertThat(adapter.timeoutFor(1)).isEqualTo(Duration.ofSeconds(2));
+        assertThat(adapter.timeoutFor(20)).isEqualTo(Duration.ofSeconds(12));
+        assertThat(adapter.timeoutFor(500)).isEqualTo(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void azureEmbeddingsTakeTheModelFromTheDeployment() {
+        reply = VECTORS;
+
+        new AzureOpenAiAdapter(properties("azure"), embedding()).embed(List.of("a", "b"));
+
+        assertThat(apiKeyHeader.get()).isEqualTo(KEY);
+        assertThat(body.get()).doesNotContain("\"model\"");
+    }
+
+    @Test
+    void embeddingsWithMissingVectorsAreUnavailable() {
+        reply = "{\"data\":[{\"index\":0,\"embedding\":[0.1]}]}";
+
+        assertThatThrownBy(() -> new OpenAiAdapter(properties("openai"), embedding()).embed(List.of("a", "b")))
+                .isInstanceOf(DependencyUnavailableException.class);
+    }
+
+    @Test
+    void embeddingsErrorsAreUnavailable() {
+        status = 500;
+        reply = "{}";
+
+        assertThatThrownBy(() -> new OpenAiAdapter(properties("openai"), embedding()).embed(List.of("a")))
+                .isInstanceOf(DependencyUnavailableException.class)
+                .hasMessage(ChatCompletionsAdapter.UNAVAILABLE);
+    }
+
+    @Test
+    void withoutKeyOrUrlThereAreNoEmbeddings() {
+        assertThat(new OpenAiAdapter(properties("openai", " ", Duration.ofSeconds(1)), embedding()).supportsEmbeddings())
+                .isFalse();
+        assertThat(new OpenAiAdapter(properties("openai")).supportsEmbeddings()).isFalse();
+        assertThat(new EmbeddingProperties(null, null, null).model()).isEqualTo("text-embedding-3-small");
     }
 
     private TutorProperties properties(String provider, String key, Duration timeout) {
