@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.UUID;
 
 // Separate derived queries instead of "(:categoryId is null or ...)": PostgreSQL cannot infer
@@ -16,4 +17,7 @@ public interface ContentRepository extends JpaRepository<Content, UUID> {
     Page<Content> findByStatus(Status status, Pageable pageable);
 
     Page<Content> findByStatusAndCategoryId(Status status, UUID categoryId, Pageable pageable);
+
+    // Contents an AI evaluation draft is based on.
+    List<Content> findByStatusAndCategoryIdOrderByTitle(Status status, UUID categoryId);
 }

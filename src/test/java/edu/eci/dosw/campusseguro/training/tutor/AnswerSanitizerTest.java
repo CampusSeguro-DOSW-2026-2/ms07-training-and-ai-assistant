@@ -53,6 +53,35 @@ class AnswerSanitizerTest {
     }
 
     @Test
+    void groundedKeepsOnlyFiguresAndEmailsOfTheContents() {
+        List<String> sources = List.of("Llama a la línea de emergencias 123. Revisa el kit cada 6 meses. "
+                + "Escribe a brigada@escuelaing.edu.co.");
+
+        assertThat(AnswerSanitizer.grounded("Llama al 123 o al 300 123 4567 y escribe a brigada@escuelaing.edu.co "
+                + "o a otro@mail.com. Revisa el kit cada 6 meses y 2 semanas.", sources))
+                .isEqualTo("Llama al 123 o al y escribe a brigada@escuelaing.edu.co o a. "
+                        + "Revisa el kit cada 6 meses y semanas.");
+    }
+
+    @Test
+    void aFigureMustAppearWhole() {
+        List<String> sources = List.of("Simulacro de 2023 en el piso 12.");
+
+        assertThat(AnswerSanitizer.grounded("Ve al piso 3 o al piso 12 de la sede principal.", sources))
+                .isEqualTo("Ve al piso o al piso 12 de la sede principal.");
+    }
+
+    @Test
+    void anAnswerWithAlmostNoWordsLeftIsEmpty() {
+        assertThat(AnswerSanitizer.grounded("Llama al 601 555 0000.", List.of("Agáchate."))).isEmpty();
+    }
+
+    @Test
+    void numberedListsBecomePlainLines() {
+        assertThat(AnswerSanitizer.plainText("1. Agáchate.\n2) Cúbrete.", SOURCES)).isEqualTo("- Agáchate.\n- Cúbrete.");
+    }
+
+    @Test
     void shortensWithoutCuttingAWord() {
         String text = "Agáchate cúbrete y sujétate hasta que pase";
 

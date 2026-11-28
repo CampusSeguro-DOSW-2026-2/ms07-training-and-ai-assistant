@@ -10,6 +10,7 @@ import edu.eci.dosw.campusseguro.training.exception.ConflictException;
 import edu.eci.dosw.campusseguro.training.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,12 +30,14 @@ public class ContentService {
     private final ContentRepository repository;
     private final CategoryService categoryService;
     private final AuditService auditService;
+    private final ApplicationEventPublisher events;
 
     public ContentService(ContentRepository repository, CategoryService categoryService,
-                          AuditService auditService) {
+                          AuditService auditService, ApplicationEventPublisher events) {
         this.repository = repository;
         this.categoryService = categoryService;
         this.auditService = auditService;
+        this.events = events;
     }
 
     // Managers (includeInactive) see every content; the community sees every active content,
@@ -82,7 +85,9 @@ public class ContentService {
     @Transactional
     public Content create(ContentRequest request) {
         Category category = categoryService.requireActive(request.categoryId());
-        return repository.save(new Content(request.title().trim(), request.body().trim(), category));
+        Content content = repository.save(new Content(request.title().trim(), request.body().trim(), category));
+        events.publishEvent(new ContentChangedEvent(content.getId()));
+        return content;
     }
 
     // The current category can be kept even if it is now inactive; a new one must be active.
@@ -100,6 +105,7 @@ public class ContentService {
                 ? content.getCategory()
                 : categoryService.requireActive(request.categoryId());
         content.update(request.title().trim(), request.body().trim(), category);
+        events.publishEvent(new ContentChangedEvent(content.getId()));
         return content;
     }
 
@@ -134,6 +140,7 @@ public class ContentService {
             throw new ConflictException("El contenido ya está activo.");
         }
         content.reactivate();
+        events.publishEvent(new ContentChangedEvent(content.getId()));
         return content;
     }
 

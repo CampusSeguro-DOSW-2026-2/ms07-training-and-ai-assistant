@@ -1,5 +1,6 @@
 package edu.eci.dosw.campusseguro.training.tutor.ai;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
@@ -9,6 +10,15 @@ public class OpenAiAdapter extends ChatCompletionsAdapter {
 
     public OpenAiAdapter(TutorProperties properties) {
         super(properties);
+    }
+
+    public OpenAiAdapter(TutorProperties properties, EmbeddingProperties embedding) {
+        super(properties, embedding);
+    }
+
+    @Autowired
+    public OpenAiAdapter(TutorProperties properties, EmbeddingProperties embedding, ModerationProperties moderation) {
+        super(properties, embedding, moderation);
     }
 
     @Override

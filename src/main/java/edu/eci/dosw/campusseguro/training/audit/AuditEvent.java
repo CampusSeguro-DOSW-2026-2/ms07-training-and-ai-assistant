@@ -19,6 +19,7 @@ public class AuditEvent {
     public static final String ATTEMPT_REGISTERED = "INTENTO_REGISTRADO";
     public static final String EVALUATION_DEACTIVATED = "EVALUACION_DESACTIVADA";
     public static final String EVALUATION_REACTIVATED = "EVALUACION_REACTIVADA";
+    public static final String EVALUATION_DRAFTED = "EVALUACION_GENERADA_IA";
     public static final String CATEGORY_CREATED = "CATEGORIA_CREADA";
     public static final String CATEGORY_UPDATED = "CATEGORIA_ACTUALIZADA";
     public static final String CATEGORY_DEACTIVATED = "CATEGORIA_DESACTIVADA";

@@ -51,6 +51,8 @@ class ChatCompletionsAdapterTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.setExecutor(Executors.newCachedThreadPool());
         server.createContext("/v1/chat/completions", this::handle);
+        server.createContext("/v1/embeddings", this::handle);
+        server.createContext("/v1/moderations", this::handle);
         server.start();
     }
 
@@ -80,6 +82,123 @@ class ChatCompletionsAdapterTest {
         } finally {
             exchange.close();
         }
+    }
+
+    private EmbeddingProperties embedding() {
+        return new EmbeddingProperties("http://127.0.0.1:" + server.getAddress().getPort() + "/v1/embeddings",
+                "text-embedding-test", Duration.ofSeconds(2));
+    }
+
+    private static final String VECTORS = """
+            {"object":"list","data":[{"object":"embedding","index":1,"embedding":[0.5,0.25]},
+            {"object":"embedding","index":0,"embedding":[0.1,-0.2]}],"model":"text-embedding-test"}""";
+
+    @Test
+    void openAiEmbeddingsSendTheModelAndKeepTheOrderOfTheTexts() {
+        reply = VECTORS;
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai"), embedding());
+
+        List<float[]> vectors = adapter.embed(List.of("hay fuga de gas", "se fue la luz"));
+
+        assertThat(adapter.supportsEmbeddings()).isTrue();
+        assertThat(adapter.embeddingModel()).isEqualTo("text-embedding-test");
+        assertThat(vectors.get(0)).containsExactly(0.1f, -0.2f);
+        assertThat(vectors.get(1)).containsExactly(0.5f, 0.25f);
+        assertThat(authorization.get()).isEqualTo("Bearer " + KEY);
+        assertThat(body.get()).contains("\"model\":\"text-embedding-test\"")
+                .contains("\"input\":[\"hay fuga de gas\",\"se fue la luz\"]")
+                .doesNotContain("\"user\"");
+    }
+
+    @Test
+    void aBatchOfContentsGetsMoreTimeThanOneQuestion() {
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai"), embedding());
+
+        assertThat(adapter.timeoutFor(1)).isEqualTo(Duration.ofSeconds(2));
+        assertThat(adapter.timeoutFor(20)).isEqualTo(Duration.ofSeconds(12));
+        assertThat(adapter.timeoutFor(500)).isEqualTo(Duration.ofSeconds(20));
+    }
+
+    @Test
+    void azureEmbeddingsTakeTheModelFromTheDeployment() {
+        reply = VECTORS;
+
+        new AzureOpenAiAdapter(properties("azure"), embedding()).embed(List.of("a", "b"));
+
+        assertThat(apiKeyHeader.get()).isEqualTo(KEY);
+        assertThat(body.get()).doesNotContain("\"model\"");
+    }
+
+    @Test
+    void embeddingsWithMissingVectorsAreUnavailable() {
+        reply = "{\"data\":[{\"index\":0,\"embedding\":[0.1]}]}";
+
+        assertThatThrownBy(() -> new OpenAiAdapter(properties("openai"), embedding()).embed(List.of("a", "b")))
+                .isInstanceOf(DependencyUnavailableException.class);
+    }
+
+    @Test
+    void embeddingsErrorsAreUnavailable() {
+        status = 500;
+        reply = "{}";
+
+        assertThatThrownBy(() -> new OpenAiAdapter(properties("openai"), embedding()).embed(List.of("a")))
+                .isInstanceOf(DependencyUnavailableException.class)
+                .hasMessage(ChatCompletionsAdapter.UNAVAILABLE);
+    }
+
+    @Test
+    void withoutKeyOrUrlThereAreNoEmbeddings() {
+        assertThat(new OpenAiAdapter(properties("openai", " ", Duration.ofSeconds(1)), embedding()).supportsEmbeddings())
+                .isFalse();
+        assertThat(new OpenAiAdapter(properties("openai")).supportsEmbeddings()).isFalse();
+        assertThat(new EmbeddingProperties(null, null, null).model()).isEqualTo("text-embedding-3-small");
+    }
+
+    private ModerationProperties moderation() {
+        return new ModerationProperties(true, "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/moderations",
+                null, Duration.ofSeconds(2));
+    }
+
+    @Test
+    void moderationReadsTheFlaggedCategories() {
+        reply = """
+                {"id":"modr-1","model":"omni-moderation-latest","results":[{"flagged":true,
+                "categories":{"self-harm":true,"self-harm/intent":true,"violence":false},
+                "category_scores":{"self-harm":0.9}}]}""";
+
+        Moderation result = new OpenAiAdapter(properties("openai"), embedding(), moderation()).moderate("texto");
+
+        assertThat(result.available()).isTrue();
+        assertThat(result.flagged()).isTrue();
+        assertThat(result.categories()).containsExactlyInAnyOrder("self-harm", "self-harm/intent");
+        assertThat(body.get()).contains("\"model\":\"omni-moderation-latest\"").contains("\"input\":\"texto\"");
+    }
+
+    @Test
+    void aCleanTextIsNotFlagged() {
+        reply = "{\"results\":[{\"flagged\":false,\"categories\":{\"violence\":false}}]}";
+
+        assertThat(new OpenAiAdapter(properties("openai"), embedding(), moderation()).moderate("texto"))
+                .isEqualTo(Moderation.clean());
+    }
+
+    @Test
+    void aFailingModerationIsUnavailableAndNeverThrows() {
+        status = 500;
+        reply = "{}";
+
+        assertThat(new OpenAiAdapter(properties("openai"), embedding(), moderation()).moderate("texto").available())
+                .isFalse();
+    }
+
+    @Test
+    void moderationIsOffWithoutConfigurationAndInAzure() {
+        assertThat(new OpenAiAdapter(properties("openai")).moderate("texto").available()).isFalse();
+        assertThat(new AzureOpenAiAdapter(properties("azure"), embedding(), moderation()).moderate("texto").available())
+                .isFalse();
+        assertThat(calls.get()).isZero();
+        assertThat(new ModerationProperties(null, null, null, null).enabled()).isTrue();
     }
 
     private TutorProperties properties(String provider, String key, Duration timeout) {
@@ -113,6 +232,30 @@ class ChatCompletionsAdapterTest {
         assertThat(apiKeyHeader.get()).isEqualTo(KEY);
         assertThat(authorization.get()).isNull();
         assertThat(body.get()).doesNotContain("\"model\"").doesNotContain("\"store\"");
+    }
+
+    @Test
+    void thePromptCanAskForJsonMoreTokensAndMoreTime() {
+        delayMs = 500;
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai", KEY, Duration.ofMillis(200)));
+
+        String text = adapter.complete(new AiPrompt("Responde en JSON.", "Genera 5 preguntas.", 1800,
+                Duration.ofSeconds(3), true));
+
+        assertThat(text).isEqualTo("Agáchate, cúbrete y sujétate.");
+        assertThat(body.get())
+                .contains("\"max_tokens\":1800")
+                .contains("\"response_format\":{\"type\":\"json_object\"}");
+    }
+
+    @Test
+    void theTutorKeepsItsOwnTimeoutAndNoJsonMode() {
+        delayMs = 500;
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai", KEY, Duration.ofMillis(200)));
+        adapter.complete(new AiPrompt("x", "y", null, Duration.ofSeconds(3), true));
+
+        assertThatThrownBy(() -> adapter.complete(PROMPT)).isInstanceOf(DependencyUnavailableException.class);
+        assertThat(body.get()).doesNotContain("response_format").contains("\"max_tokens\":200");
     }
 
     @Test
@@ -222,7 +365,8 @@ class ChatCompletionsAdapterTest {
         TutorProperties azure = properties(" Azure ");
         AiAdapters adapters = new AiAdapters(List.of(new OpenAiAdapter(azure), new AzureOpenAiAdapter(azure)), azure);
 
-        assertThat(adapters.current()).isInstanceOf(AzureOpenAiAdapter.class);
+        assertThat(adapters.chosen()).isInstanceOf(AzureOpenAiAdapter.class);
+        assertThat(adapters.current().provider()).isEqualTo("azure");
     }
 
     @Test

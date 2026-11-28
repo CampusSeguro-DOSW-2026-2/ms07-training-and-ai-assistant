@@ -1,0 +1,45 @@
+# Synonyms of the tutor search (RF-15), loaded by TutorTerms when MS07 starts.
+# One group per line: "word of the contents: other ways to say it, separated by commas".
+# Words are compared without accents or case, and a phrase of several words counts as one word.
+# The left word should be the one the contents use; plurals and verb forms are already handled by the stemmer.
+
+# Sismo
+sismo: terremoto, terremotos, temblor, temblores, tiembla, tiemble, temblando, temblo, telurico, teluricos, sismico, sismica, movimiento telurico, esta temblando, esta temblando todo
+
+# Incendio
+incendio: fuego, fuegos, llamas, humo, humareda, conato, conato de incendio, quemazon, se quema, se esta quemando, quemandose, se prendio, se prendio fuego, prendio fuego, se incendio, incendiando, en llamas, olor a quemado
+
+# Fuga y derrame
+fuga: escape, escapes, escapa, se escapa, goteo, gotea, se salio, se esta saliendo, olor a gas, huele a gas, fuga de gas
+derrame: se rego, rego, se riega, riega, regado, regada, se derramo, derramo, derrama, salpico, se volco, volcado
+
+# Sustancias
+sustancia: quimico, quimicos, quimica, quimicas, reactivo, reactivos, acido, acidos, solvente, solventes, producto quimico
+
+# Lesiones y primeros auxilios
+lesion: herido, herida, heridos, heridas, lesionado, lesionada, lastimado, lastimada, sangra, sangre, sangrado, sangrando, desmayo, desmayos, se desmayo, desmayado, desmayada, desmayarse, inconsciente, se desmaya, golpe, golpeado, golpeada, golpes, fractura, fracturas, quebro, quemadura, quemaduras, me queme, me quemo, queme, se quemo la mano, ampolla, ampollas
+
+# Evacuacion
+evacuar: salir, desalojar, desalojo, desalojen, abandonar el edificio, salir del edificio, evacuen, evacue
+puntodeencuentro: punto de encuentro, puntos de encuentro, zona segura, zonas seguras, lugar de reunion, sitio de reunion
+
+# Servicios del edificio
+ascensor: elevador, elevadores, ascensores
+energia: luz, apagon, apagones, corte de luz, se fue la luz, sin luz, no hay luz, electricidad, corte de energia
+inundacion: agua, filtracion, filtraciones, inundado, inundada, se inundo, gotera, goteras
+
+# Amenazas
+amenaza: amenazas, bomba, explosivo, objeto sospechoso, paquete sospechoso, maleta sospechosa, persona armada, arma, armado, sospechoso, sospechosa
+
+# Personas de apoyo
+brigadista: brigada, brigadas, brigadistas, rescatista, rescatistas, socorrista
+
+# Alarmas y equipos
+alarma: sirena, sirenas, alarmas, timbre de emergencia
+extintor: extintores, extinguidor, extinguidores
+
+# Espacios del campus
+salon: aula, aulas, clase, clases, salones, salon de clase
+laboratorio: lab, labs, laboratorios
+auditorio: auditorios, teatro
+oficina: oficinas, despacho
