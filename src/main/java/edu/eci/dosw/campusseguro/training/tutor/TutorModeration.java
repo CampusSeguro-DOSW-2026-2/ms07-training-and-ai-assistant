@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Set;
 
 // RF-15: moderation of the redacted question and of the answer of the model, with the moderation of the provider.
@@ -23,6 +24,12 @@ public class TutorModeration {
     // as illicit/violent. A question out of scope finds no contents and never reaches the model anyway.
     static final Set<String> EMERGENCY_LIKE = Set.of("violence", "violence/graphic", "illicit", "illicit/violent");
 
+    // Safety net that does not depend on the provider: if the moderation fails or is slow, a question with one of
+    // these phrases still gets the message of care. Compared without accents or case.
+    static final List<String> CRISIS_PHRASES = List.of("quiero morir", "me quiero morir", "no quiero vivir",
+            "quitarme la vida", "acabar con mi vida", "suicidarme", "suicidio", "me voy a suicidar", "matarme",
+            "hacerme dano", "me quiero hacer dano", "me voy a hacer dano", "lastimarme", "cortarme las venas", "no vale la pena vivir");
+
     private static final Logger log = LoggerFactory.getLogger(TutorModeration.class);
 
     private final AiAdapters adapters;
@@ -32,6 +39,11 @@ public class TutorModeration {
     }
 
     public Verdict check(String text) {
+        String normalized = " " + InputAnalyzer.normalize(text) + " ";
+        if (CRISIS_PHRASES.stream().anyMatch(phrase -> normalized.contains(" " + phrase + " ")
+                || normalized.contains(" " + phrase))) {
+            return Verdict.CRISIS;
+        }
         Moderation moderation;
         try {
             moderation = adapters.current().moderate(text);
