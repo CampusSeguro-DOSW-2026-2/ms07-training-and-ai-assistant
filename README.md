@@ -74,6 +74,8 @@ Todas las rutas protegidas reciben los encabezados de identidad y autorización 
 | POST | `/api/v1/training/evaluations/{id}/attempts` | Presentar intento de evaluación | `ms07:quiz:take` |
 | PATCH | `/api/v1/training/evaluations/{id}/deactivate` | Desactivar evaluación | `ms07:content:manage` |
 | PATCH | `/api/v1/training/evaluations/{id}/reactivate` | Reactivar evaluación | `ms07:content:manage` |
+| POST | `/api/v1/training/evaluation-drafts` | Pedir a la IA un borrador de evaluación (202) | `ms07:content:manage` |
+| GET | `/api/v1/training/evaluation-drafts/{id}` | Consultar el estado del borrador | `ms07:content:manage` |
 | POST | `/api/v1/tutor/questions` | Consultar al tutor IA | `ms07:tutor:use` |
 
 La especificación OpenAPI se encuentra en [`swagger.yml`](swagger.yml).
@@ -221,6 +223,50 @@ Los números cortos del campus no se tocan: «piso 3», «bloque 2», «salón 2
 | `TUTOR_MAX_ANSWER_CHARS` | `1200` | Largo máximo de la respuesta que se muestra |
 
 En la VM no hace falta definirlas si sirven los valores por defecto; para cambiarlas se agregan como líneas `CLAVE=valor` en `MS07_EXTRA_ENV`.
+
+## Borradores de evaluaciones con IA
+
+El ADMIN puede pedirle a la IA un **borrador** de evaluación hecho solo con los contenidos activos de una categoría (RF-14). La IA nunca guarda nada: el ADMIN revisa y ajusta el borrador y lo guarda con `POST /api/v1/training/evaluations`, como cualquier evaluación.
+
+**Por qué es asíncrono.** Escribir de 3 a 10 preguntas puede tardar más que el tiempo que el API Gateway espera una respuesta. Por eso el `POST` solo inicia el trabajo y responde enseguida con 202; el front consulta el `GET` cada pocos segundos hasta que el borrador queda `LISTO` o `FALLIDO`.
+
+```bash
+curl -i -X POST http://localhost:8087/api/v1/training/evaluation-drafts \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: <UUID_DEL_ADMIN>" -H "X-User-Role: ADMIN" -H "X-User-Permission: ms07:content:manage" \
+  -d '{"categoryId":"00000000-0000-0000-0000-000000000005","questions":5,"topic":"Derrames"}'
+# 202 {"id":"…","status":"EN_PROCESO"}
+
+curl -i http://localhost:8087/api/v1/training/evaluation-drafts/<id> \
+  -H "X-User-Id: <UUID_DEL_ADMIN>" -H "X-User-Role: ADMIN" -H "X-User-Permission: ms07:content:manage"
+# 200 {"id":"…","status":"LISTO","draft":{"title":"…","topic":"…","categoryId":"…","questions":[{"statement":"…","options":[{"text":"…","correct":true}, …]}]}}
+```
+
+`questions` va de 3 a 10 (5 si no se envía) y `topic` es opcional. `draft` tiene exactamente la forma del cuerpo de `POST /evaluations`; si el estado es `FALLIDO`, `message` explica en español qué pasó.
+
+| Respuesta | Cuándo |
+|---|---|
+| 202 | El borrador se está generando (`EN_PROCESO`) |
+| 200 | Estado del borrador: `EN_PROCESO`, `LISTO` con `draft` o `FALLIDO` con `message` |
+| 400 `VALIDACION` | Falta `categoryId`, `questions` fuera de 3 a 10 o `topic` de más de 150 caracteres |
+| 401 / 403 | Faltan las cabeceras de identidad o el permiso `ms07:content:manage` |
+| 404 `NO_ENCONTRADO` | La categoría no existe; o el borrador no existe, venció o lo pidió otro usuario |
+| 422 `REGLA_NEGOCIO` | La categoría está inactiva o no tiene contenidos activos |
+| 429 `DEMASIADAS_SOLICITUDES` | El ADMIN ya pidió 5 borradores en la última hora |
+| 503 `DEPENDENCIA_NO_DISPONIBLE` | Ya hay demasiados borradores en cola; intente en unos minutos |
+
+**Cómo funciona.**
+
+1. MS07 valida la categoría, lee sus contenidos activos y responde 202. El trabajo sigue en un `ThreadPoolTaskExecutor` pequeño (2 hilos y 10 en cola); si está lleno responde 503.
+2. El prompt usa solo esos contenidos, delimitados como datos con los mismos criterios contra inyección del tutor, y pide preguntas en español, claras, con una sola respuesta correcta y 3 o 4 opciones plausibles, sin «todas las anteriores», sin preguntas capciosas ni datos que no estén en los contenidos. Se pide la respuesta en modo JSON (`response_format: json_object`) con un tiempo (`LLM_GENERATION_TIMEOUT`) y un largo (`LLM_GENERATION_MAX_TOKENS`) propios; el tutor sigue con `LLM_TIMEOUT`.
+3. La salida del modelo se valida antes de mostrarla: debe ser JSON válido; los textos se limpian (sin HTML, Markdown ni enlaces ajenos a los contenidos) y se recortan a los límites de la base (enunciado 500, opción 300, título y tema 150); cada pregunta debe tener al menos 2 opciones y exactamente una correcta, como exige `EvaluationService`; se descartan las preguntas inválidas o repetidas y las opciones del tipo «todas las anteriores». Si no queda ninguna, el borrador queda `FALLIDO`.
+4. El borrador vive 30 minutos en memoria y solo lo ve quien lo pidió. Se pierde si MS07 se reinicia.
+5. Cada ADMIN puede pedir 5 borradores por hora. Cada pedido queda en `audit_event` como `EVALUACION_GENERADA_IA`, con el usuario y la fecha y sin el contenido del borrador.
+
+| Variable | Por defecto | Uso |
+|---|---|---|
+| `LLM_GENERATION_TIMEOUT` | `30s` | Tiempo máximo de espera del modelo al generar un borrador |
+| `LLM_GENERATION_MAX_TOKENS` | `1800` | Largo máximo de la respuesta del modelo al generar un borrador |
 
 ## Despliegue en la nube (AWS)
 
