@@ -116,6 +116,30 @@ class ChatCompletionsAdapterTest {
     }
 
     @Test
+    void thePromptCanAskForJsonMoreTokensAndMoreTime() {
+        delayMs = 500;
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai", KEY, Duration.ofMillis(200)));
+
+        String text = adapter.complete(new AiPrompt("Responde en JSON.", "Genera 5 preguntas.", 1800,
+                Duration.ofSeconds(3), true));
+
+        assertThat(text).isEqualTo("Agáchate, cúbrete y sujétate.");
+        assertThat(body.get())
+                .contains("\"max_tokens\":1800")
+                .contains("\"response_format\":{\"type\":\"json_object\"}");
+    }
+
+    @Test
+    void theTutorKeepsItsOwnTimeoutAndNoJsonMode() {
+        delayMs = 500;
+        OpenAiAdapter adapter = new OpenAiAdapter(properties("openai", KEY, Duration.ofMillis(200)));
+        adapter.complete(new AiPrompt("x", "y", null, Duration.ofSeconds(3), true));
+
+        assertThatThrownBy(() -> adapter.complete(PROMPT)).isInstanceOf(DependencyUnavailableException.class);
+        assertThat(body.get()).doesNotContain("response_format").contains("\"max_tokens\":200");
+    }
+
+    @Test
     void openAiIsAskedNotToStoreTheConversation() {
         new OpenAiAdapter(properties("openai")).complete(PROMPT);
 
