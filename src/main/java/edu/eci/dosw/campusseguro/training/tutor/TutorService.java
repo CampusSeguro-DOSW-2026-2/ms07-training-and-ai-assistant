@@ -32,6 +32,19 @@ public class TutorService {
                     + "Consulta el protocolo oficial de emergencias de la ECI o sigue las indicaciones de los "
                     + "brigadistas de tu edificio.";
 
+    // A question about hurting oneself is not answered with the contents: it gets care and the emergency line 123.
+    // No other number or place is given, so nothing is made up.
+    public static final String CRISIS_MESSAGE =
+            "Siento mucho que esté pasando por un momento tan difícil. No tiene que enfrentarlo sin compañía: hable "
+                    + "ahora con alguien de confianza. Si está en peligro o piensa hacerse daño, llame a la línea de "
+                    + "emergencias 123, o acuda a los brigadistas o al personal de bienestar de la universidad. "
+                    + "Pedir ayuda está bien.";
+
+    // Violence, hate, harassment or sexual content: a neutral reminder of what the tutor is for.
+    public static final String NOT_ALLOWED_MESSAGE =
+            "El Tutor CampusSeguro solo responde preguntas sobre prevención y actuación ante emergencias en el "
+                    + "campus. Escriba su pregunta sobre ese tema.";
+
     // Word the model must answer alone when the contents are not enough or the topic is out of scope.
     static final String NO_INFORMATION_MARK = "SIN_INFORMACION";
 
@@ -81,11 +94,13 @@ public class TutorService {
     private final TutorRateLimiter rateLimiter;
     private final TutorSafetyProperties safety;
     private final ContentEmbeddings embeddings;
+    private final TutorModeration moderation;
 
     public TutorService(InputAnalyzer analyzer, ContentRetriever retriever, AiAdapters adapters,
                         AuditService audit, PersonalDataRedactor redactor, TutorRateLimiter rateLimiter,
-                        TutorSafetyProperties safety, ContentEmbeddings embeddings) {
+                        TutorSafetyProperties safety, ContentEmbeddings embeddings, TutorModeration moderation) {
         this.embeddings = embeddings;
+        this.moderation = moderation;
         this.analyzer = analyzer;
         this.retriever = retriever;
         this.adapters = adapters;
@@ -99,7 +114,9 @@ public class TutorService {
     public TutorAnswerResponse ask(UUID userId, String rawQuestion) {
         rateLimiter.check(userId);
         TutorAnswerResponse response = answer(rawQuestion);
-        register(userId, response.sufficient() ? TutorQueryResult.RESPONDIDA : TutorQueryResult.FUERA_DE_ALCANCE);
+        TutorQueryResult result = response.notice() != null ? TutorQueryResult.BLOQUEADA
+                : response.sufficient() ? TutorQueryResult.RESPONDIDA : TutorQueryResult.FUERA_DE_ALCANCE;
+        register(userId, result);
         return response;
     }
 
@@ -107,6 +124,19 @@ public class TutorService {
         String question = analyzer.clean(rawQuestion);
         // What leaves MS07 (the embedding and the prompt) has no personal data and no identity of who asks.
         String redacted = redactor.redact(question);
+
+        // Moderation of the question before anything else; if it fails the flow goes on.
+        switch (moderation.check(redacted)) {
+            case CRISIS -> {
+                return new TutorAnswerResponse(CRISIS_MESSAGE, false, List.of(), TutorAnswerResponse.CRISIS);
+            }
+            case NOT_ALLOWED -> {
+                return new TutorAnswerResponse(NOT_ALLOWED_MESSAGE, false, List.of(), TutorAnswerResponse.NOT_ALLOWED);
+            }
+            case ALLOWED -> {
+                // the normal flow goes on
+            }
+        }
 
         // The search by words uses the question as written: it does not leave MS07. The one by meaning uses the
         // embedding of the redacted question, calculated before reading the contents so no connection waits for it.
@@ -123,7 +153,9 @@ public class TutorService {
         }
         List<String> texts = related.stream().flatMap(content -> Stream.of(content.title(), content.text())).toList();
         answer = AnswerSanitizer.plainText(answer.replace(NO_INFORMATION_MARK, ""), texts);
-        if (answer.isBlank()) {
+        // Only what the contents say: no phone, e-mail or figure that is not in them
+        answer = AnswerSanitizer.grounded(answer, texts);
+        if (answer.isBlank() || moderation.check(answer) != TutorModeration.Verdict.ALLOWED) {
             return noInformation();
         }
         answer = AnswerSanitizer.shorten(answer, safety.maxAnswerChars());
