@@ -89,6 +89,12 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
         return embedding.model();
     }
 
+    // LLM_EMBEDDING_TIMEOUT is for one question. A batch of contents (at startup) gets more time: one more timeout for
+    // every few texts, up to ten times.
+    Duration timeoutFor(int texts) {
+        return texts <= 1 ? embedding.timeout() : embedding.timeout().multipliedBy(Math.min(10, 1 + texts / 4));
+    }
+
     // POST /v1/embeddings with every text at once; the answer keeps the order with "index".
     @Override
     public List<float[]> embed(List<String> texts) {
@@ -100,7 +106,7 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
             body.put("model", embedding.model());
         }
         body.put("input", texts);
-        EmbeddingResponse response = post(embedding.url(), embedding.timeout(), body, EmbeddingResponse.class);
+        EmbeddingResponse response = post(embedding.url(), timeoutFor(texts.size()), body, EmbeddingResponse.class);
         if (response == null || response.data() == null || response.data().size() != texts.size()) {
             log.warn("AI provider {} answered embeddings without the expected vectors", provider());
             throw new DependencyUnavailableException(UNAVAILABLE);
