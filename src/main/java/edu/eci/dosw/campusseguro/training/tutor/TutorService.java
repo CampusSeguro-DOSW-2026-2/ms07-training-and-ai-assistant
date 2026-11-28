@@ -80,10 +80,12 @@ public class TutorService {
     private final PersonalDataRedactor redactor;
     private final TutorRateLimiter rateLimiter;
     private final TutorSafetyProperties safety;
+    private final ContentEmbeddings embeddings;
 
     public TutorService(InputAnalyzer analyzer, ContentRetriever retriever, AiAdapters adapters,
                         AuditService audit, PersonalDataRedactor redactor, TutorRateLimiter rateLimiter,
-                        TutorSafetyProperties safety) {
+                        TutorSafetyProperties safety, ContentEmbeddings embeddings) {
+        this.embeddings = embeddings;
         this.analyzer = analyzer;
         this.retriever = retriever;
         this.adapters = adapters;
@@ -103,15 +105,18 @@ public class TutorService {
 
     private TutorAnswerResponse answer(String rawQuestion) {
         String question = analyzer.clean(rawQuestion);
+        // What leaves MS07 (the embedding and the prompt) has no personal data and no identity of who asks.
+        String redacted = redactor.redact(question);
 
-        // The search uses the question as written: it does not leave MS07.
-        List<RelatedContent> related = find(question);
+        // The search by words uses the question as written: it does not leave MS07. The one by meaning uses the
+        // embedding of the redacted question, calculated before reading the contents so no connection waits for it.
+        float[] questionVector = embeddings.embedQuestion(redacted).orElse(null);
+        List<RelatedContent> related = find(question, questionVector);
         if (related.isEmpty()) {
             return noInformation();
         }
 
-        // What goes to the model has no personal data and no identity of who asks.
-        String answer = adapters.current().complete(new AiPrompt(instructions(related), message(redactor.redact(question))));
+        String answer = adapters.current().complete(new AiPrompt(instructions(related), message(redacted)));
         // Only an answer that starts with the mark means "no information"; a mark left after a real answer is removed
         if (answer.strip().startsWith(NO_INFORMATION_MARK) || repeatsInstructions(answer, related)) {
             return noInformation();
@@ -138,9 +143,9 @@ public class TutorService {
     }
 
     // Alternate flow 4a: the database is down while looking for contents.
-    private List<RelatedContent> find(String question) {
+    private List<RelatedContent> find(String question, float[] questionVector) {
         try {
-            return retriever.find(question);
+            return retriever.find(question, questionVector);
         } catch (DataAccessException e) {
             log.warn("The tutor could not read the contents: {}", e.getClass().getSimpleName());
             throw new DependencyUnavailableException(ChatCompletionsAdapter.UNAVAILABLE);
