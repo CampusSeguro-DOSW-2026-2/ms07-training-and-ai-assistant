@@ -1,4 +1,4 @@
--- RF-14: one example evaluation per category, so the learning path offers "Pon a prueba lo aprendido" in every
+-- RF-14: one example evaluation of three questions per category, so the learning path offers "Pon a prueba lo aprendido" in every
 -- stage. Based on the contents of V4 and V11. Each question has three options and exactly one correct.
 -- Fixed ids: evaluation 20000000-...-0000000000EE, question 21000000-...-0000000000EQ, option 22000000-...-000000000EQO.
 -- They must be reviewed by the team and the university brigade before being presented as official.
@@ -18,11 +18,9 @@ INSERT INTO question (id, evaluation_id, position, statement) VALUES
     ('21000000-0000-0000-0000-000000000011', '20000000-0000-0000-0000-000000000001', 1, '¿Cuántas salidas conviene ubicar desde los lugares donde pasas más tiempo?'),
     ('21000000-0000-0000-0000-000000000012', '20000000-0000-0000-0000-000000000001', 2, '¿Qué debe tener un kit básico de emergencia?'),
     ('21000000-0000-0000-0000-000000000013', '20000000-0000-0000-0000-000000000001', 3, '¿Para qué sirve un simulacro?'),
-    ('21000000-0000-0000-0000-000000000014', '20000000-0000-0000-0000-000000000001', 4, 'Si te han entrenado y el fuego es pequeño, ¿hacia dónde apuntas el extintor?'),
     ('21000000-0000-0000-0000-000000000021', '20000000-0000-0000-0000-000000000002', 1, '¿Qué haces durante un sismo si estás en un espacio cerrado?'),
     ('21000000-0000-0000-0000-000000000022', '20000000-0000-0000-0000-000000000002', 2, 'Si hay humo en la ruta de salida, ¿cómo avanzas?'),
     ('21000000-0000-0000-0000-000000000023', '20000000-0000-0000-0000-000000000002', 3, 'Si sientes olor a gas, ¿qué no debes hacer?'),
-    ('21000000-0000-0000-0000-000000000024', '20000000-0000-0000-0000-000000000002', 4, 'Si quedas atrapado en un ascensor, ¿qué haces?'),
     ('21000000-0000-0000-0000-000000000031', '20000000-0000-0000-0000-000000000003', 1, 'Después de un sismo, ¿cuándo puedes volver a entrar al edificio?'),
     ('21000000-0000-0000-0000-000000000032', '20000000-0000-0000-0000-000000000003', 2, '¿Cómo enfrías una quemadura leve?'),
     ('21000000-0000-0000-0000-000000000033', '20000000-0000-0000-0000-000000000003', 3, '¿Qué haces con una persona con una lesión grave o posible fractura?'),
@@ -30,7 +28,7 @@ INSERT INTO question (id, evaluation_id, position, statement) VALUES
     ('21000000-0000-0000-0000-000000000042', '20000000-0000-0000-0000-000000000004', 2, '¿Qué haces al llegar al punto de encuentro?'),
     ('21000000-0000-0000-0000-000000000043', '20000000-0000-0000-0000-000000000004', 3, '¿Cómo ayudas a una persona con movilidad reducida durante una evacuación?'),
     ('21000000-0000-0000-0000-000000000051', '20000000-0000-0000-0000-000000000005', 1, 'Si se derrama una sustancia, ¿qué haces primero?'),
-    ('21000000-0000-0000-0000-000000000052', '20000000-0000-0000-0000-000000000005', 2, '¿Qué no se debe usar sobre un fuego de líquidos inflamables o equipos eléctricos?'),
+    ('21000000-0000-0000-0000-000000000052', '20000000-0000-0000-0000-000000000005', 2, 'Si sientes olor a gas en el laboratorio, ¿qué no debes hacer?'),
     ('21000000-0000-0000-0000-000000000053', '20000000-0000-0000-0000-000000000005', 3, 'Antes de empezar a trabajar en un laboratorio, ¿qué debes conocer?'),
     ('21000000-0000-0000-0000-000000000061', '20000000-0000-0000-0000-000000000006', 1, 'Durante un sismo en clase, ¿dónde te proteges?'),
     ('21000000-0000-0000-0000-000000000062', '20000000-0000-0000-0000-000000000006', 2, 'Si el pasillo está lleno de humo, ¿qué haces en el salón?'),
@@ -40,7 +38,7 @@ INSERT INTO question (id, evaluation_id, position, statement) VALUES
     ('21000000-0000-0000-0000-000000000073', '20000000-0000-0000-0000-000000000007', 3, 'Si se va la luz durante un evento, ¿qué haces primero?'),
     ('21000000-0000-0000-0000-000000000081', '20000000-0000-0000-0000-000000000008', 1, 'Durante un sismo en la oficina, ¿qué haces?'),
     ('21000000-0000-0000-0000-000000000082', '20000000-0000-0000-0000-000000000008', 2, '¿Cuál es el riesgo de incendio más común en una oficina?'),
-    ('21000000-0000-0000-0000-000000000083', '20000000-0000-0000-0000-000000000008', 3, 'Si estás solo en la oficina y suena la alarma, ¿qué haces?')
+    ('21000000-0000-0000-0000-000000000083', '20000000-0000-0000-0000-000000000008', 3, '¿Qué conviene hacer con los equipos que no usas en la oficina?')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO question_option (id, question_id, position, text, is_correct) VALUES
@@ -53,9 +51,6 @@ INSERT INTO question_option (id, question_id, position, text, is_correct) VALUES
     ('22000000-0000-0000-0000-000000000131', '21000000-0000-0000-0000-000000000013', 1, 'Para revisar la asistencia', FALSE),
     ('22000000-0000-0000-0000-000000000132', '21000000-0000-0000-0000-000000000013', 2, 'Para practicar lo que harías en una emergencia real', TRUE),
     ('22000000-0000-0000-0000-000000000133', '21000000-0000-0000-0000-000000000013', 3, 'Para salir temprano de clase', FALSE),
-    ('22000000-0000-0000-0000-000000000141', '21000000-0000-0000-0000-000000000014', 1, 'A la base del fuego', TRUE),
-    ('22000000-0000-0000-0000-000000000142', '21000000-0000-0000-0000-000000000014', 2, 'A las llamas más altas', FALSE),
-    ('22000000-0000-0000-0000-000000000143', '21000000-0000-0000-0000-000000000014', 3, 'Al humo', FALSE),
     ('22000000-0000-0000-0000-000000000211', '21000000-0000-0000-0000-000000000021', 1, 'Agacharte, cubrirte y sujetarte', TRUE),
     ('22000000-0000-0000-0000-000000000212', '21000000-0000-0000-0000-000000000021', 2, 'Correr hacia la salida', FALSE),
     ('22000000-0000-0000-0000-000000000213', '21000000-0000-0000-0000-000000000021', 3, 'Tomar el ascensor', FALSE),
@@ -65,9 +60,6 @@ INSERT INTO question_option (id, question_id, position, text, is_correct) VALUES
     ('22000000-0000-0000-0000-000000000231', '21000000-0000-0000-0000-000000000023', 1, 'Avisar a los brigadistas', FALSE),
     ('22000000-0000-0000-0000-000000000232', '21000000-0000-0000-0000-000000000023', 2, 'Encender o apagar luces e interruptores', TRUE),
     ('22000000-0000-0000-0000-000000000233', '21000000-0000-0000-0000-000000000023', 3, 'Ventilar si es seguro', FALSE),
-    ('22000000-0000-0000-0000-000000000241', '21000000-0000-0000-0000-000000000024', 1, 'Presionar la alarma y esperar el rescate con calma', TRUE),
-    ('22000000-0000-0000-0000-000000000242', '21000000-0000-0000-0000-000000000024', 2, 'Forzar las puertas', FALSE),
-    ('22000000-0000-0000-0000-000000000243', '21000000-0000-0000-0000-000000000024', 3, 'Salir por el techo', FALSE),
     ('22000000-0000-0000-0000-000000000311', '21000000-0000-0000-0000-000000000031', 1, 'Cuando los responsables lo autoricen', TRUE),
     ('22000000-0000-0000-0000-000000000312', '21000000-0000-0000-0000-000000000031', 2, 'Apenas pare el movimiento', FALSE),
     ('22000000-0000-0000-0000-000000000313', '21000000-0000-0000-0000-000000000031', 3, 'Cuando veas que otros entran', FALSE),
@@ -89,9 +81,9 @@ INSERT INTO question_option (id, question_id, position, text, is_correct) VALUES
     ('22000000-0000-0000-0000-000000000511', '21000000-0000-0000-0000-000000000051', 1, 'Avisar al responsable del laboratorio y a los brigadistas', TRUE),
     ('22000000-0000-0000-0000-000000000512', '21000000-0000-0000-0000-000000000051', 2, 'Limpiarla sin protección', FALSE),
     ('22000000-0000-0000-0000-000000000513', '21000000-0000-0000-0000-000000000051', 3, 'Seguir con la práctica', FALSE),
-    ('22000000-0000-0000-0000-000000000521', '21000000-0000-0000-0000-000000000052', 1, 'Un extintor adecuado', FALSE),
-    ('22000000-0000-0000-0000-000000000522', '21000000-0000-0000-0000-000000000052', 2, 'Una tapa para quitarle el aire', FALSE),
-    ('22000000-0000-0000-0000-000000000523', '21000000-0000-0000-0000-000000000052', 3, 'Agua', TRUE),
+    ('22000000-0000-0000-0000-000000000521', '21000000-0000-0000-0000-000000000052', 1, 'Cerrar la llave del gas si es seguro', FALSE),
+    ('22000000-0000-0000-0000-000000000522', '21000000-0000-0000-0000-000000000052', 2, 'Avisar al responsable del laboratorio', FALSE),
+    ('22000000-0000-0000-0000-000000000523', '21000000-0000-0000-0000-000000000052', 3, 'Encender o apagar equipos e interruptores', TRUE),
     ('22000000-0000-0000-0000-000000000531', '21000000-0000-0000-0000-000000000053', 1, 'El número de mesones', FALSE),
     ('22000000-0000-0000-0000-000000000532', '21000000-0000-0000-0000-000000000053', 2, 'La ubicación de las duchas de emergencia, los lavaojos y los extintores', TRUE),
     ('22000000-0000-0000-0000-000000000533', '21000000-0000-0000-0000-000000000053', 3, 'Solo el horario de la práctica', FALSE),
@@ -119,7 +111,7 @@ INSERT INTO question_option (id, question_id, position, text, is_correct) VALUES
     ('22000000-0000-0000-0000-000000000821', '21000000-0000-0000-0000-000000000082', 1, 'Las plantas', FALSE),
     ('22000000-0000-0000-0000-000000000822', '21000000-0000-0000-0000-000000000082', 2, 'Las sillas', FALSE),
     ('22000000-0000-0000-0000-000000000823', '21000000-0000-0000-0000-000000000082', 3, 'El eléctrico, como tomas sobrecargadas', TRUE),
-    ('22000000-0000-0000-0000-000000000831', '21000000-0000-0000-0000-000000000083', 1, 'Quedarte para cuidar los equipos', FALSE),
-    ('22000000-0000-0000-0000-000000000832', '21000000-0000-0000-0000-000000000083', 2, 'Salir por las escaleras y avisar a los brigadistas que estabas en el edificio', TRUE),
-    ('22000000-0000-0000-0000-000000000833', '21000000-0000-0000-0000-000000000083', 3, 'Esperar a confirmar si es real', FALSE)
+    ('22000000-0000-0000-0000-000000000831', '21000000-0000-0000-0000-000000000083', 1, 'Conectarlos todos a la misma toma', FALSE),
+    ('22000000-0000-0000-0000-000000000832', '21000000-0000-0000-0000-000000000083', 2, 'Desconectarlos', TRUE),
+    ('22000000-0000-0000-0000-000000000833', '21000000-0000-0000-0000-000000000083', 3, 'Dejarlos encendidos', FALSE)
 ON CONFLICT (id) DO NOTHING;
