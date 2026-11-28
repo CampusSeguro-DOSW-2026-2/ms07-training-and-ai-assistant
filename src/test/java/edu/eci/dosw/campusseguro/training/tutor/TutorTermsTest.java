@@ -2,6 +2,7 @@ package edu.eci.dosw.campusseguro.training.tutor;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,6 +19,19 @@ class TutorTermsTest {
         assertThat(TutorTerms.canonical("aula")).isEqualTo("salon");
         assertThat(TutorTerms.canonical("elevador")).isEqualTo("ascensor");
         assertThat(TutorTerms.canonical("extintor")).isEqualTo("extintor");
+    }
+
+    @Test
+    void wordsOfOtherEmergenciesBecomeTheWordOfTheContents() {
+        assertThat(List.of("fuego", "llamas", "humo")).allMatch(word -> TutorTerms.canonical(word).equals("incendio"));
+        assertThat(TutorTerms.canonical("escape")).isEqualTo("fuga");
+        assertThat(List.of("riega", "rego", "derrama")).allMatch(word -> TutorTerms.canonical(word).equals("derrame"));
+        assertThat(List.of("quimico", "quimicos", "reactivo", "reactivos"))
+                .allMatch(word -> TutorTerms.canonical(word).equals("sustancia"));
+        assertThat(List.of("desmayo", "herido", "sangre")).allMatch(word -> TutorTerms.canonical(word).equals("lesion"));
+        assertThat(TutorTerms.canonical("extintores")).isEqualTo("extintor");
+        assertThat(TutorTerms.canonical("sirena")).isEqualTo("alarma");
+        assertThat(TutorTerms.canonical("inundaciones")).isEqualTo("inundacion");
     }
 
     @Test

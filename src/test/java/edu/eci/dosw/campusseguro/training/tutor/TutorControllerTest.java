@@ -208,6 +208,26 @@ class TutorControllerTest {
     }
 
     @Test
+    void theScopeIsEveryCampusEmergency() throws Exception {
+        Category category = categories.save(new Category("Test Tutor Laboratorio", null));
+        Content spill = contents.save(new Content("Qué hacer ante un derrame o una fuga de sustancias",
+                "Si se derrama o se fuga una sustancia, avisa de inmediato al responsable del laboratorio.", category));
+        ai.reply = "Avisa de inmediato al responsable del laboratorio y aléjate de la zona.";
+
+        mvc.perform(asStudent("¿Qué hago si se riega un químico en el lab?"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sufficient").value(true))
+                .andExpect(jsonPath("$.sources[0].id").value(spill.getId().toString()));
+
+        assertThat(ai.lastPrompt.instructions())
+                .contains("prevención y actuación ante emergencias en el campus")
+                .contains("incendios")
+                .contains("fugas o derrames de sustancias")
+                .contains("personas lesionadas y primeros auxilios básicos")
+                .contains("ÚNICAMENTE los contenidos");
+    }
+
+    @Test
     void inactiveContentIsNotUsed() throws Exception {
         earthquake.deactivate();
         contents.flush();
