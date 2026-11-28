@@ -13,9 +13,11 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 // Shared client for the "chat completions" API, used by OpenAI and Azure OpenAI.
 // Each subclass only says how it authenticates and whether the body carries the model.
@@ -27,17 +29,24 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
     private static final Logger log = LoggerFactory.getLogger(ChatCompletionsAdapter.class);
 
     private final TutorProperties properties;
-    private final RestClient client;
+    // One client per timeout: LLM_TIMEOUT for the tutor and the longer one of the evaluation drafts.
+    private final Map<Duration, RestClient> clients = new ConcurrentHashMap<>();
 
     protected ChatCompletionsAdapter(TutorProperties properties) {
         this.properties = properties;
-        HttpClient http = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1)
-                .connectTimeout(properties.timeout())
-                .build();
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
-        factory.setReadTimeout(properties.timeout());
-        this.client = RestClient.builder().requestFactory(factory).build();
+        client(properties.timeout());
+    }
+
+    private RestClient client(Duration timeout) {
+        return clients.computeIfAbsent(timeout, t -> {
+            HttpClient http = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(t)
+                    .build();
+            JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
+            factory.setReadTimeout(t);
+            return RestClient.builder().requestFactory(factory).build();
+        });
     }
 
     // Puts the API key in the header the provider expects.
@@ -56,7 +65,8 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
             throw new DependencyUnavailableException(UNAVAILABLE);
         }
         try {
-            ChatResponse response = client.post()
+            Duration timeout = prompt.timeout() != null ? prompt.timeout() : properties.timeout();
+            ChatResponse response = client(timeout).post()
                     .uri(properties.url())
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -89,7 +99,10 @@ public abstract class ChatCompletionsAdapter implements AiAdapter {
                 Map.of("role", "system", "content", prompt.instructions()),
                 Map.of("role", "user", "content", prompt.message())));
         body.put("temperature", properties.temperature());
-        body.put("max_tokens", properties.maxTokens());
+        body.put("max_tokens", prompt.maxTokens() != null ? prompt.maxTokens() : properties.maxTokens());
+        if (prompt.json()) {
+            body.put("response_format", Map.of("type", "json_object"));
+        }
         if (sendsStore()) {
             body.put("store", false);
         }
