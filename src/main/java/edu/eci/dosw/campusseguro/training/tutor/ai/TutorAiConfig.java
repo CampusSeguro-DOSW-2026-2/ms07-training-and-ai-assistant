@@ -5,6 +5,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties({TutorProperties.class, TutorSafetyProperties.class})
+@EnableConfigurationProperties({TutorProperties.class, TutorSafetyProperties.class, EmbeddingProperties.class})
 public class TutorAiConfig {
 }
