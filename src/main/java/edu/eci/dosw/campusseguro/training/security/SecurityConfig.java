@@ -62,6 +62,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/training/evaluations/*/attempts")
                         .hasAuthority(Permissions.QUIZ_TAKE)
 
+                        // Evaluation drafts written by the AI (RF-14): ADMIN only
+                        .requestMatchers(HttpMethod.POST, "/api/v1/training/evaluation-drafts")
+                        .hasAuthority(Permissions.CONTENT_MANAGE)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/training/evaluation-drafts/*")
+                        .hasAuthority(Permissions.CONTENT_MANAGE)
+
                         // Progress (RF-13)
                         .requestMatchers(HttpMethod.GET, "/api/v1/training/progress/me")
                         .hasAuthority(Permissions.QUIZ_TAKE)
