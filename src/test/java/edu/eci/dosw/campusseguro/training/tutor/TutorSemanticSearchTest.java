@@ -161,7 +161,7 @@ class TutorSemanticSearchTest {
     }
 
     @Test
-    void eachActiveContentIsStoredOnceAndOnlyRecalculatedWhenItChanges() {
+    void eachActiveContentIsStoredOnceAndOnlyRecalculatedWhenItChanges() throws InterruptedException {
         assertThat(stored.findById(elevator.getId())).get()
                 .extracting(ContentEmbedding::getModel).isEqualTo("fake-concepts");
         int calls = fake.calls;
@@ -169,6 +169,8 @@ class TutorSemanticSearchTest {
         embeddings.refreshAll();
         assertThat(fake.calls).isEqualTo(calls);
 
+        // The edit must be at least one millisecond later than the creation, as in real use
+        Thread.sleep(5);
         elevator.update("Si quedas atrapado en un ascensor o elevador", elevator.getBody(), elevator.getCategory());
         contents.flush();
         embeddings.refreshAll();
