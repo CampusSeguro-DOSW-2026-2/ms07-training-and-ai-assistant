@@ -16,8 +16,10 @@ public class InputAnalyzer {
     public static final String FIELD = "question";
     public static final int MAX_LENGTH = 500;
 
-    // Control and invisible format characters (line breaks, tabs, zero-width spaces...).
-    private static final Pattern CONTROL = Pattern.compile("[\\p{Cc}\\p{Cf}]");
+    // Control characters (line breaks, tabs...) become spaces; invisible format characters (zero-width spaces,
+    // direction marks) are removed, so "sis​mo" is "sismo" and cannot hide words from the checks.
+    private static final Pattern CONTROL = Pattern.compile("\\p{Cc}");
+    private static final Pattern INVISIBLE = Pattern.compile("\\p{Cf}");
     private static final Pattern SPACES = Pattern.compile("[\\s\\p{Z}]+");
     private static final Pattern MARKS = Pattern.compile("\\p{M}+");
     private static final Pattern NOT_WORD = Pattern.compile("[^\\p{L}\\p{N}]+");
@@ -25,7 +27,8 @@ public class InputAnalyzer {
     // Returns the question ready to send to the tutor: one line, single spaces, no invisible characters.
     // 400 VALIDACION if it is empty or has more than 500 characters.
     public String clean(String question) {
-        String cleaned = question == null ? "" : SPACES.matcher(CONTROL.matcher(question).replaceAll(" "))
+        String visible = question == null ? "" : INVISIBLE.matcher(question).replaceAll("");
+        String cleaned = SPACES.matcher(CONTROL.matcher(visible).replaceAll(" "))
                 .replaceAll(" ")
                 .trim();
         if (cleaned.isEmpty()) {
