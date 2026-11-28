@@ -249,8 +249,8 @@ El tutor recibe texto libre de cualquier persona de la comunidad y se lo pasa a 
 3. **Redacción de datos personales** (`PersonalDataRedactor`): desde aquí, todo lo que sale de MS07 (embedding, moderación y prompt) va sin esos datos.
 4. **Moderación de la pregunta** (`TutorModeration`, endpoint gratuito `/v1/moderations` de OpenAI con `omni-moderation-latest`):
    - **autolesión** → no se llama al tutor. Se responde un mensaje de cuidado, sin juzgar, que invita a hablar con alguien de confianza y a llamar a la **línea de emergencias 123** o acudir a los brigadistas o al personal de bienestar. Va con `notice: "CRISIS"`;
-   - **odio, acoso, amenazas, contenido sexual o ilícito** → mensaje neutro de que el tutor solo trata emergencias del campus, con `notice: "NO_PERMITIDO"`;
-   - **«violencia» sola no bloquea:** la moderación marca así emergencias reales («un compañero está sangrando mucho», «hay un incendio y gente herida»). Solo bloquea si viene con amenazas, acoso, odio, contenido sexual o ilícito («quiero matar a…», «cómo hago una bomba»);
+   - **odio, acoso, amenazas contra personas o contenido sexual** → mensaje neutro de que el tutor solo trata emergencias del campus, con `notice: "NO_PERMITIDO"` («quiero matar a mi profesor» llega como acoso con amenaza);
+   - **«violencia» o «ilícito» solos no bloquean:** la moderación real marca así preguntas legítimas. «Un compañero está sangrando mucho» y «hay un incendio y gente herida» llegan como violencia, e incluso «cómo evacuar el edificio» llega como ilícito violento. Una pregunta de otro tema no encuentra contenidos y no llega al modelo, y la respuesta pasa igual por la moderación de salida;
    - en ambos casos bloqueados, `sufficient: false`, sin fuentes, y la auditoría registra `BLOQUEADA`, nunca el texto;
    - si la moderación falla o no está disponible (por ejemplo, con Azure), el flujo sigue normal y solo queda un log técnico.
 5. **Búsqueda** de los contenidos (ver «Cómo busca el tutor»). Si no hay ninguno, se responde sin llamar al modelo.
@@ -277,7 +277,7 @@ El tutor recibe texto libre de cualquier persona de la comunidad y se lo pasa a 
 | Preguntas enormes que gastan tokens | Máximo 500 caracteres (400 `VALIDACION`) | `InputAnalyzer` |
 | Abuso o costo excesivo | 10 por minuto y 100 por día por usuario (429) | `TutorRateLimiter` |
 | Persona en riesgo (autolesión) | Mensaje de cuidado con la línea 123, sin respuesta del modelo | `TutorModeration` |
-| Odio, acoso, amenazas, contenido sexual o ilícito | Mensaje neutro, sin respuesta del modelo | `TutorModeration` |
+| Odio, acoso, amenazas contra personas o contenido sexual | Mensaje neutro, sin respuesta del modelo | `TutorModeration` |
 | El modelo inventa teléfonos, correos o cifras | Se quitan si no están en los contenidos usados | `AnswerSanitizer.grounded` |
 | HTML, scripts, enlaces o imágenes que filtran datos | Se quitan etiquetas, Markdown y enlaces ajenos a los contenidos | `AnswerSanitizer.plainText` |
 | Respuesta dañina del modelo | Moderación de la salida; si sale marcada, mensaje de sin información | `TutorService` |
@@ -292,7 +292,7 @@ El tutor recibe texto libre de cualquier persona de la comunidad y se lo pasa a 
 - instrucciones dentro de un contenido creado por el ADMIN;
 - datos personales, código, enlaces e imágenes que filtran datos, teléfonos y cifras inventados;
 - otro idioma, textos muy largos y caracteres invisibles;
-- crisis, odio, una emergencia con heridos que no debe bloquearse y la moderación caída.
+- crisis, odio, una emergencia con heridos y una evacuación que no deben bloquearse, y la moderación caída.
 
 #### Datos personales que se redactan
 

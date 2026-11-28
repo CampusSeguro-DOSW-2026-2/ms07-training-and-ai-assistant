@@ -18,7 +18,10 @@ public class TutorModeration {
     // Self-harm: the person may be at risk, so the tutor answers with care instead of blocking.
     static final Set<String> CRISIS_CATEGORIES = Set.of("self-harm", "self-harm/intent", "self-harm/instructions");
 
-    static final Set<String> VIOLENCE_ONLY = Set.of("violence", "violence/graphic");
+    // Categories the moderation gives to real emergency questions, so alone they never block: "un compañero está
+    // sangrando mucho" and "hay un incendio y gente herida" come as violence, and even "cómo evacuar el edificio" comes
+    // as illicit/violent. A question out of scope finds no contents and never reaches the model anyway.
+    static final Set<String> EMERGENCY_LIKE = Set.of("violence", "violence/graphic", "illicit", "illicit/violent");
 
     private static final Logger log = LoggerFactory.getLogger(TutorModeration.class);
 
@@ -42,10 +45,9 @@ public class TutorModeration {
         if (moderation.categories().stream().anyMatch(CRISIS_CATEGORIES::contains)) {
             return Verdict.CRISIS;
         }
-        // "violence" alone is not blocked: the moderation marks real emergencies that way ("un compañero está
-        // sangrando mucho", "hay un incendio y gente herida"). It is blocked with threats, harassment, hate, sexual or
-        // illicit content ("quiero matar a...", "cómo hago una bomba"), or any other flag.
-        if (VIOLENCE_ONLY.containsAll(moderation.categories())) {
+        // Hate, harassment, threats against people or sexual content are blocked ("quiero matar a mi profesor" comes
+        // as harassment/threatening). Violence or illicit alone are not: see EMERGENCY_LIKE.
+        if (EMERGENCY_LIKE.containsAll(moderation.categories())) {
             return Verdict.ALLOWED;
         }
         return Verdict.NOT_ALLOWED;

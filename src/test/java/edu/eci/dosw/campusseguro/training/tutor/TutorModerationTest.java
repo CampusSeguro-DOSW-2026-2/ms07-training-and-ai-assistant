@@ -47,18 +47,21 @@ class TutorModerationTest {
     }
 
     @Test
-    void hateHarassmentSexualAndIllicitAreNotAllowed() {
-        for (String category : List.of("hate", "harassment/threatening", "sexual", "sexual/minors", "illicit/violent")) {
+    void hateHarassmentAndSexualContentAreNotAllowed() {
+        for (String category : List.of("hate", "harassment/threatening", "sexual", "sexual/minors")) {
             assertThat(verdict(Set.of(category))).as(category).isEqualTo(TutorModeration.Verdict.NOT_ALLOWED);
         }
         assertThat(verdict(Set.of("violence", "harassment/threatening"))).isEqualTo(TutorModeration.Verdict.NOT_ALLOWED);
     }
 
-    // The moderation marks real emergencies as violence ("un compañero está sangrando mucho"): they are answered
+    // The real moderation marks emergencies as violence ("un compañero está sangrando mucho") and even "cómo evacuar
+    // el edificio" as illicit/violent: they are answered
     @Test
-    void violenceAloneIsAllowed() {
+    void violenceOrIllicitAloneIsAllowed() {
         assertThat(verdict(Set.of("violence"))).isEqualTo(TutorModeration.Verdict.ALLOWED);
         assertThat(verdict(Set.of("violence", "violence/graphic"))).isEqualTo(TutorModeration.Verdict.ALLOWED);
+        assertThat(verdict(Set.of("illicit/violent"))).isEqualTo(TutorModeration.Verdict.ALLOWED);
+        assertThat(verdict(Set.of("illicit", "illicit/violent"))).isEqualTo(TutorModeration.Verdict.ALLOWED);
     }
 
     @Test
