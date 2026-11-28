@@ -65,6 +65,20 @@ class TutorModerationTest {
     }
 
     @Test
+    void selfHarmPhrasesAreACrisisEvenIfTheModerationFails() {
+        TutorModeration failing = with(text -> {
+            throw new IllegalStateException("timeout");
+        });
+
+        for (String question : List.of("me quiero hacer daño", "Ya no quiero vivir", "pienso en quitarme la vida",
+                "quiero suicidarme")) {
+            assertThat(failing.check(question)).as(question).isEqualTo(TutorModeration.Verdict.CRISIS);
+        }
+        assertThat(failing.check("¿qué hago si un compañero se hace daño en el laboratorio?"))
+                .isEqualTo(TutorModeration.Verdict.ALLOWED);
+    }
+
+    @Test
     void cleanUnavailableOrFailingModerationIsAllowed() {
         assertThat(with(text -> Moderation.clean()).check("texto")).isEqualTo(TutorModeration.Verdict.ALLOWED);
         assertThat(with(text -> Moderation.unavailable()).check("texto")).isEqualTo(TutorModeration.Verdict.ALLOWED);

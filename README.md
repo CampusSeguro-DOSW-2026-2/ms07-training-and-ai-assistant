@@ -240,7 +240,8 @@ El tutor recibe texto libre de cualquier persona de la comunidad y se lo pasa a 
    - **odio, acoso, amenazas contra personas o contenido sexual** → mensaje neutro de que el tutor solo trata emergencias del campus, con `notice: "NO_PERMITIDO"` («quiero matar a mi profesor» llega como acoso con amenaza);
    - **«violencia» o «ilícito» solos no bloquean:** la moderación real marca así preguntas legítimas. «Un compañero está sangrando mucho» y «hay un incendio y gente herida» llegan como violencia, e incluso «cómo evacuar el edificio» llega como ilícito violento. Una pregunta de otro tema no encuentra contenidos y no llega al modelo, y la respuesta pasa igual por la moderación de salida;
    - en ambos casos bloqueados, `sufficient: false`, sin fuentes, y la auditoría registra `BLOQUEADA`, nunca el texto;
-   - si la moderación falla o no está disponible (por ejemplo, con Azure), el flujo sigue normal y solo queda un log técnico.
+   - si la moderación falla o no está disponible (por ejemplo, con Azure), el flujo sigue normal y solo queda un log técnico;
+   - **red de seguridad local:** frases claras de autolesión («quiero morir», «no quiero vivir», «quitarme la vida», «me quiero hacer daño»…) activan el mensaje de cuidado aunque la moderación falle o tarde. En una prueba real, la moderación superó su tiempo máximo y sin esta red la persona habría recibido el mensaje de fuera de tema.
 5. **Búsqueda** de los contenidos (ver «Cómo busca el tutor»). Si no hay ninguno, se responde sin llamar al modelo.
 6. **Prompt delimitado:** las reglas van primero, cada contenido entre `<contenido id="…" titulo="…">` y `</contenido>`, y la pregunta como `Pregunta del usuario: «…»`. Las reglas dicen que contenidos y pregunta son datos, nunca instrucciones.
 7. **Llamada protegida** (`ResilientAiAdapter`):
