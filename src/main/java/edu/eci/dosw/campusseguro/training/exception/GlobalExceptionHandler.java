@@ -48,6 +48,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNPROCESSABLE_CONTENT, "REGLA_NEGOCIO", e.getMessage(), List.of(), request);
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> tooManyRequests(TooManyRequestsException e, HttpServletRequest request) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, "DEMASIADAS_SOLICITUDES", e.getMessage(), List.of(), request);
+    }
+
     @ExceptionHandler(DependencyUnavailableException.class)
     public ResponseEntity<ErrorResponse> dependencyUnavailable(DependencyUnavailableException e,
                                                                HttpServletRequest request) {

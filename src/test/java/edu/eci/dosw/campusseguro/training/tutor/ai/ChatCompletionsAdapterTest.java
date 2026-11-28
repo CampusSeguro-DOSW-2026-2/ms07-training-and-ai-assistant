@@ -6,6 +6,9 @@ import edu.eci.dosw.campusseguro.training.exception.DependencyUnavailableExcepti
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -13,6 +16,9 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,6 +40,7 @@ class ChatCompletionsAdapterTest {
     private final AtomicReference<String> body = new AtomicReference<>();
     private final AtomicReference<String> authorization = new AtomicReference<>();
     private final AtomicReference<String> apiKeyHeader = new AtomicReference<>();
+    private final AtomicReference<Set<String>> headerNames = new AtomicReference<>();
     private final AtomicInteger calls = new AtomicInteger();
     private volatile int status = 200;
     private volatile String reply = ANSWER;
@@ -57,6 +64,7 @@ class ChatCompletionsAdapterTest {
         body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
         authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
         apiKeyHeader.set(exchange.getRequestHeaders().getFirst("api-key"));
+        headerNames.set(Set.copyOf(exchange.getRequestHeaders().keySet()));
         try {
             if (delayMs > 0) {
                 Thread.sleep(delayMs);
@@ -104,7 +112,33 @@ class ChatCompletionsAdapterTest {
         assertThat(text).isEqualTo("Agáchate, cúbrete y sujétate.");
         assertThat(apiKeyHeader.get()).isEqualTo(KEY);
         assertThat(authorization.get()).isNull();
-        assertThat(body.get()).doesNotContain("\"model\"");
+        assertThat(body.get()).doesNotContain("\"model\"").doesNotContain("\"store\"");
+    }
+
+    @Test
+    void openAiIsAskedNotToStoreTheConversation() {
+        new OpenAiAdapter(properties("openai")).complete(PROMPT);
+
+        assertThat(body.get()).contains("\"store\":false");
+    }
+
+    @Test
+    void theRequestSaysNothingAboutWhoAsks() {
+        String correlationId = "4f1c2b3a-1111-4222-8333-944455556666";
+        MDC.put("correlationId", correlationId);
+        try {
+            new OpenAiAdapter(properties("openai")).complete(PROMPT);
+        } finally {
+            MDC.remove("correlationId");
+        }
+
+        Map<String, Object> sent = JsonMapper.builder().build().readValue(body.get(), new TypeReference<>() {
+        });
+        assertThat(sent).containsOnlyKeys("model", "messages", "temperature", "max_tokens", "store");
+        assertThat(body.get()).doesNotContain(correlationId);
+        assertThat(headerNames.get())
+                .noneMatch(name -> name.toLowerCase(Locale.ROOT).startsWith("x-user"))
+                .noneMatch(name -> name.equalsIgnoreCase("X-Correlation-ID"));
     }
 
     @Test

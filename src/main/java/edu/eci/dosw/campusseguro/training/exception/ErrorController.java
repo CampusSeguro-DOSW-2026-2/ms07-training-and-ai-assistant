@@ -39,6 +39,7 @@ public class ErrorController implements org.springframework.boot.webmvc.error.Er
             case UNSUPPORTED_MEDIA_TYPE -> "TIPO_NO_SOPORTADO";
             case CONFLICT -> "CONFLICTO";
             case UNPROCESSABLE_CONTENT -> "REGLA_NEGOCIO";
+            case TOO_MANY_REQUESTS -> "DEMASIADAS_SOLICITUDES";
             default -> "ERROR_INTERNO";
         };
     }

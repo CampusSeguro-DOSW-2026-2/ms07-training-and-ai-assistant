@@ -176,11 +176,49 @@ curl -i -X POST http://localhost:8087/api/v1/tutor/questions \
 | 200 | Respuesta del tutor, o `sufficient: false` si no hay información |
 | 400 `VALIDACION` | Pregunta vacía o de más de 500 caracteres |
 | 401 / 403 | Faltan las cabeceras de identidad o el permiso `ms07:tutor:use` |
+| 429 `DEMASIADAS_SOLICITUDES` | El usuario superó el límite de preguntas por minuto o por día |
 | 503 `DEPENDENCIA_NO_DISPONIBLE` | El modelo o la base de datos no responden a tiempo |
 
 Cada consulta respondida o fuera de alcance queda en `audit_event` con el usuario, la fecha y hora y el resultado (`RESPONDIDA` o `FUERA_DE_ALCANCE`). No se guarda el texto de la pregunta ni de la respuesta (RF-15, regla 5). Si ese registro falla, el usuario recibe igual la respuesta y el error queda solo en el log.
 
 La búsqueda de contenidos tolera cómo escribe la gente: cuenta los sinónimos como la misma palabra («terremoto», «temblor» o «tiembla» son «sismo»; «aula» o «clase» son «salón») y lee una palabra que no está en los contenidos como la más parecida, con un error de tipeo en palabras de 5 a 7 letras y hasta dos en las más largas («sizmo» es «sismo», «laboratrio» es «laboratorio»). Las palabras que aparecen en pocos contenidos pesan más que las que aparecen en casi todos. Los sinónimos están en `TutorTerms`.
+
+### Seguridad del tutor
+
+**Datos personales.** Antes de enviar la pregunta al modelo, `PersonalDataRedactor` reemplaza los datos personales por una marca. La búsqueda de contenidos usa la pregunta original porque no sale de MS07; lo que llega al proveedor de IA va siempre sin esos datos.
+
+| Dato | Ejemplo | Queda como |
+|---|---|---|
+| Correo | `ana.gomez@gmail.com` | `[correo]` |
+| Teléfono (celular `3xx xxx xxxx`, fijo `60x xxx xxxx` o de 7 dígitos después de «teléfono», «tel.», «fijo» o `+57`; con espacios, puntos o guiones) | `+57 300 123 4567` | `[teléfono]` |
+| Documento (cédula o tarjeta de identidad de 6 a 10 dígitos, con o sin puntos, o después de «cédula», «C.C.», «T.I.», «documento») | `mi cédula es 1.234.567` | `mi cédula es [documento]` |
+| Tarjeta (13 a 19 dígitos que pasan la validación de Luhn) | `4111 1111 1111 1111` | `[tarjeta]` |
+| Enlace | `https://…`, `www.…` | `[enlace]` |
+| Nombre dicho de forma explícita | `me llamo Ana María`, `soy Ana Gómez` | `me llamo [nombre]`, `soy [nombre]` |
+
+Los números cortos del campus no se tocan: «piso 3», «bloque 2», «salón 205» o «1990».
+
+**Nada identifica a quien pregunta.** La petición al proveedor solo lleva el modelo, los dos mensajes, la temperatura y el máximo de tokens: ni el campo `user`, ni el id del usuario, ni las cabeceras `X-User-*`, ni el `X-Correlation-ID`. A OpenAI se le envía además `"store": false` para que no guarde la conversación; a Azure no, porque no todas sus versiones de API aceptan ese campo.
+
+**Instrucciones que no se pueden cambiar desde la pregunta.** El mensaje de sistema trae las reglas y después cada contenido entre `<contenido id="…" titulo="…">` y `</contenido>`. La pregunta va en el mensaje de usuario como `Pregunta del usuario: «…»`. Las reglas dicen que los contenidos y la pregunta son datos y nunca instrucciones, y prohíben revelar las instrucciones, cambiar de rol o generar código, enlaces o datos que no estén en los contenidos. Ni un contenido ni la pregunta pueden cerrar sus delimitadores: los `<` y `>` se envían como `‹` y `›`, y las comillas `«` `»` de la pregunta como `"`.
+
+**Respuesta revisada antes de mostrarla.**
+
+- Se quitan las etiquetas HTML, las marcas de Markdown (`**`, `#`, bloques de código) y los enlaces que no aparecen en los contenidos usados.
+- Se recorta a `TUTOR_MAX_ANSWER_CHARS` caracteres (1200 por defecto) sin partir una palabra, y termina en «…».
+- Si la respuesta repite las reglas del sistema (seis palabras seguidas de ellas que no estén en los contenidos) o sus delimitadores, se trata como `SIN_INFORMACION`: el usuario recibe `sufficient: false` y la remisión al protocolo oficial.
+
+**Límite de uso.** Cada usuario (`X-User-Id`) puede hacer `TUTOR_RATE_PER_MINUTE` preguntas por minuto (10 por defecto) y `TUTOR_RATE_PER_DAY` por día (100 por defecto), con ventanas deslizantes en memoria. Al superarlo MS07 responde 429 `DEMASIADAS_SOLICITUDES` con un mensaje en español; esa pregunta no llega al modelo ni queda registrada como respondida. El conteo es por instancia y se reinicia si MS07 se reinicia.
+
+**Logs.** Ningún log contiene la pregunta, la respuesta, el prompt ni la clave: solo el proveedor, el código HTTP o el tipo de error y el resultado. Una prueba revisa la salida de los logs para confirmarlo.
+
+| Variable | Por defecto | Uso |
+|---|---|---|
+| `TUTOR_RATE_PER_MINUTE` | `10` | Preguntas por usuario por minuto |
+| `TUTOR_RATE_PER_DAY` | `100` | Preguntas por usuario por día |
+| `TUTOR_MAX_ANSWER_CHARS` | `1200` | Largo máximo de la respuesta que se muestra |
+
+En la VM no hace falta definirlas si sirven los valores por defecto; para cambiarlas se agregan como líneas `CLAVE=valor` en `MS07_EXTRA_ENV`.
 
 ## Despliegue en la nube (AWS)
 
