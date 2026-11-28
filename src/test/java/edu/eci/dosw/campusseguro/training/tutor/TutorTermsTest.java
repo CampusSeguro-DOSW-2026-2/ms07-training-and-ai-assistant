@@ -35,6 +35,49 @@ class TutorTermsTest {
     }
 
     @Test
+    void theSynonymsFileHasEveryTopic() {
+        assertThat(List.of("conato", "quemazon")).allMatch(word -> TutorTerms.canonical(word).equals("incendio"));
+        assertThat(List.of("goteo", "escape")).allMatch(word -> TutorTerms.canonical(word).equals("fuga"));
+        assertThat(List.of("solvente", "acido")).allMatch(word -> TutorTerms.canonical(word).equals("sustancia"));
+        assertThat(List.of("inconsciente", "fractura", "sangra"))
+                .allMatch(word -> TutorTerms.canonical(word).equals("lesion"));
+        assertThat(TutorTerms.canonical("apagon")).isEqualTo("energia");
+        assertThat(TutorTerms.canonical("filtracion")).isEqualTo("inundacion");
+        assertThat(TutorTerms.canonical("bomba")).isEqualTo("amenaza");
+        assertThat(TutorTerms.canonical("rescatista")).isEqualTo("brigadista");
+        assertThat(TutorTerms.canonical("fuegos")).isEqualTo("incendio");
+    }
+
+    @Test
+    void phrasesBecomeOneWord() {
+        assertThat(TutorTerms.phrases("se fue la luz en el salon")).isEqualTo("energia en el salon");
+        assertThat(TutorTerms.phrases("hay olor a gas")).isEqualTo("hay fuga");
+        assertThat(TutorTerms.phrases("donde esta la zona segura")).isEqualTo("donde esta la puntodeencuentro");
+        assertThat(TutorTerms.phrases("vi un paquete sospechoso")).isEqualTo("vi un amenaza");
+        assertThat(TutorTerms.phrases("un companero se desmayo")).isEqualTo("un companero lesion");
+        assertThat(TutorTerms.phrases("se rego un reactivo")).isEqualTo("derrame un reactivo");
+    }
+
+    @Test
+    void fourLetterWordsGetOneTypoOnlyAgainstKnownWordsWithTheSameFirstLetter() {
+        Set<String> vocabulary = Set.of("fuga", "gas", "humo", "piso");
+
+        assertThat(TutorTerms.correct("fuja", vocabulary)).isEqualTo("fuga");
+        assertThat(TutorTerms.correct("fugs", vocabulary)).isEqualTo("fuga");
+        assertThat(TutorTerms.correct("ruga", vocabulary)).isEqualTo("ruga");
+        assertThat(TutorTerms.correct("pato", vocabulary)).isEqualTo("pato");
+        assertThat(TutorTerms.correct("mesa", vocabulary)).isEqualTo("mesa");
+        assertThat(TutorTerms.correct("sal", vocabulary)).isEqualTo("sal");
+    }
+
+    @Test
+    void typosOfTopicWordsAreFixed() {
+        assertThat(TutorTerms.correct("incendo", Set.of())).isEqualTo("incendio");
+        assertThat(TutorTerms.correct("evaquar", Set.of())).isEqualTo("evacuar");
+        assertThat(TutorTerms.correct("sizmo", Set.of())).isEqualTo("sismo");
+    }
+
+    @Test
     void oneTypoIsFixedInMediumWords() {
         assertThat(TutorTerms.correct("sizmo", VOCABULARY)).isEqualTo("sismo");
         assertThat(TutorTerms.correct("simso", VOCABULARY)).isEqualTo("sismo");
